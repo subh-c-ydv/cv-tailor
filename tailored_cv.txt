@@ -1,0 +1,171 @@
+# Subhash Chandra Yadav
+**Senior Programme Manager │ Portfolio Governance & PMO │ Transformation Leadership │ Financial Services & Complex Technology**
+
++45 9180 7190 · syadav@allthingsagile.net · linkedin.com/in/subhashchandrayadav
+Copenhagen, Denmark · Work permit: employer-sponsored
+
+---
+
+## PROFESSIONAL SUMMARY
+
+A senior programme and portfolio leader with 20+ years of experience driving large-scale transformation across financial services, logistics, and consumer industries — in India, the United Kingdom, and Denmark. Brings a rare combination of end-to-end delivery ownership and enterprise portfolio governance, with a consistent track record of translating strategic priorities into measurable business outcomes in complex, cross-functional, and internationally distributed environments.
+
+Experienced in designing and operating PMO governance frameworks from scratch, orchestrating multi-initiative portfolios, managing executive stakeholders to CIO-1 level, and embedding the structural discipline — roadmaps, OKRs, risk management, dependency tracking — that enables organisations to execute strategy at scale. At Maersk, managed a $10M+ technology portfolio, co-authored a business case that secured SLT approval and PoC funding following a multi-million-dollar outage, and drove $2M in annual TCO reduction. At Bunker Holding, shifted engineering teams from vanity metrics to outcome-driven delivery, halving cycle time within a single quarter.
+
+Brings the financial services depth — AON Consulting, Infosys (major telco), Collinson Group — and the enterprise agility credentials to contribute immediately to Saxo's Foundation Portfolio and its ambition to simplify the core, strengthen data and platforms, and embed automation and AI for scalable, compliant growth.
+
+---
+
+## CORE COMPETENCIES
+
+| Competency | Evidence |
+|---|---|
+| **Portfolio & PMO Governance** | Designed and operated end-to-end PMO governance from scratch — intake, prioritisation, milestone tracking, risk management, escalation, and executive reporting — for a $10M+ technology portfolio at A.P. Møller – Mærsk. Framework sustained across three years of leadership change. |
+| **Large-Scale Transformation Leadership** | End-to-end ownership of complex, cross-functional transformation programmes across agile, hybrid, and plan-driven delivery models. Sole accountability for outcomes at programme and portfolio level. |
+| **Strategy-to-Execution Translation** | Co-designed operating models, structured roadmaps, capacity and investment plans, and OKR-aligned delivery frameworks. Converted strategic priorities into concrete execution and monitored measurable outcomes at portfolio level. |
+| **Enterprise Stakeholder Engagement** | Regular trusted advisor and sparring partner to senior leadership to CIO-1 level. Structured executive reporting, Steerco facilitation, and governance forum leadership across global enterprise organisations. |
+| **Risk, Dependency & Complexity Management** | Proactive identification and mitigation of delivery risk and cross-initiative dependencies. Managed sequencing and trade-offs across parallel programmes in multi-team, multi-market environments. |
+| **Programme Governance & Structured Delivery** | Solid expertise across PMI, Agile, SAFe, Stage Gate, and hybrid frameworks — applied pragmatically. Owned plans, timelines, budgets, and resourcing across full programme lifecycles. |
+| **Business Case & Investment Planning** | Co-authored formal business cases including current-state analysis, risk of inaction, investment glide path, and ROI modelling. Secured SLT approval and PoC funding at Maersk. |
+| **Value Realisation & Adoption** | Ensured new capabilities were embedded and adopted — not just delivered. Drove 25–30% efficiency gains through agile coaching, behavioural change, and sustained ways-of-working shifts. |
+| **Vendor & Contract Governance** | Governed global SI relationships (TCS, Ubique Systems) through monthly performance reviews, annual contract cycles, and quality governance. On-site engagement at TCS delivery offices in India. |
+| **PMO Standards & Continuous Improvement** | Built and continuously evolved PMO tools, reporting standards, and delivery ways of working. Contributed to strengthening collective PM capability across portfolio and product teams. |
+
+---
+
+## PROFESSIONAL EXPERIENCE
+
+### Lead Portfolio Manager · Programme Leader
+**A.P. Møller – Mærsk A/S · APM Terminals** · Copenhagen, Denmark · *Jul 2022 – Aug 2025*
+
+Owned the $10M+ technology portfolio for APM Terminals' Digital Products Portfolio (DPP) — the digital backbone supporting customer-facing solutions, the Central Data Hub (CDH) integration layer, and operational excellence products serving global terminal operations including yard, quay, and gate functions.
+
+- **Designed and operated a fit-for-purpose PMO governance framework from scratch** — defining portfolio intake, prioritisation criteria, milestone tracking, escalation mechanisms, and executive reporting standards. The framework remained the foundational governance structure across three years of leadership change and continued platform growth — evidence of a design built for durability, not just the moment.
+- **Co-designed the DPP operating model** at the inaugural leadership offsite (June 2022) alongside the Platform Lead (Sr. Director) and engineering leads — structuring teams into business-context-aligned units, establishing cross-functional ways of working, and leadership rules of engagement that became embedded practice.
+- **Co-authored a formal business case** — triggered by a 6+ hour terminal data outage in summer 2024 costing several million dollars — covering current-state assessment, risk of inaction, investment glide path, and projected ROI. Presented to the SLT; accepted with minimal pushback; secured PoC funding for two engineering resources over six months.
+- **Led annual and quarterly technology planning cycles** — contributing portfolio inputs on staffing, roadmaps, capacity, and strategic dependencies aligned to enterprise priorities. Trusted advisor and sparring partner to technology leadership to CIO-1 level.
+- **Drove $2M annual TCO reduction** through cloud cost optimisation and external vendor rationalisation. Governed vendor relationships — TCS, Ubique Systems — through monthly performance reviews, annual contract reviews, and quality oversight, with on-site engagement at TCS delivery offices in India.
+- **Orchestrated a cross-initiative portfolio** spanning customer-facing products, data platform operations, and internal tooling — managing trade-offs, sequencing, and interdependencies across parallel programmes with global reach.
+- **Oversaw the CDH data platform** processing 1B+ system-of-record transactions and 500,000+ API requests daily across global terminal operations — providing governance oversight and escalation management for a mission-critical, high-availability system.
+- **Coached engineering leaders and teams** through behavioural and cultural shifts toward enterprise agility, delivering average 25–30% efficiency gains across product teams.
+
+---
+
+### Scrum Master · Program Manager
+**Bunker Holding A/S** · Middelfart, Denmark · *Dec 2025 – Present*
+
+- Introduced a DORA-centric delivery culture to the Credit & Trading platforms — shifting focus from vanity metrics to Lead Time to Change, Cycle Time, and MTTR. Reduced Cycle Time from above 20 days to below 10 days within a single quarter; cut defect slippage by 25% through structured Definition of Done and Backlog Refinement practices.
+- Partnered with Engineering Leadership on Major Incident Management, PR Approval Framework, Coding Guidelines, and Pair & Mob Programming standards.
+- Designed and built a Skills Matrix (individual and team capability framework) and a Roadmap & Planning Tool combining tactical feature detail with strategic epic-level horizon planning — both developed through deliberate use of foundational AI models. The Roadmap & Planning Tool was accepted on first presentation and is being considered for adoption by other product teams.
+
+---
+
+### Senior Scrum Master
+**A.P. Møller – Mærsk A/S** · Copenhagen, Denmark · *Jun 2021 – Jun 2022*
+
+- Facilitated delivery of strategic initiatives across Maersk's invoicing and payments platform — including credit card payment enablement across Asian markets (reducing cash transactions by up to 30% in the first year), Saudi Arabia payment platform integration (compliance-driven), and e-invoicing rollout. Collectively supporting hundreds of millions in annual transaction value.
+- Co-developed an Epic Refinement Canvas with the Finance and Payments Product Owner — covering value statements, personas, user story maps, hard and soft dependencies, risk identification, and strategic classification — which became embedded practice and was subsequently adopted by several other teams.
+- Drove lean-agile adoption delivering average 25–30% efficiency gains, faster time-to-market, and elevated customer satisfaction.
+- Active member of the Maersk Agile Community of Practice — regularly sought by peers for coaching and knowledge sharing; co-hosted the 2022 Maersk Annual Agile Conference for 250+ participants.
+
+---
+
+### Release Manager · QA Manager
+**Pandora A/S** · Copenhagen, Denmark · *Sep 2020 – May 2021*
+
+- Served as a key member of the Consumer Tech Agile Release Train (ART), driving quality and release governance for strategic technology initiatives.
+- Developed a release governance strategy enabling iterative deliveries and frictionless collaboration between product teams and the Change Advisory Board (CAB).
+- Drafted and implemented a comprehensive testing strategy aligned with the business outcomes of Pandora's Consumer Loyalty Programme.
+
+---
+
+### Test Manager · Scrum Master *(concurrent)*
+**A.P. Møller – Mærsk A/S** · Copenhagen, Denmark · *Aug 2018 – Aug 2020 · First engagement*
+
+- Owned end-to-end software quality governance for the Customer Proposition Agile Release Train — defining test strategy, overseeing defect lifecycle management, and governing release readiness across multiple interdependent product teams.
+- Simultaneously coached a separate struggling Scrum team — bringing it from inconsistent delivery to a steady, recognised cadence within a few months, with direct positive recognition from the business stakeholder.
+- Optimised test automation, reducing regression suite runtime from 4 hours to under 1 hour — an efficiency gain of over 80%.
+- Led migration from HPQC to X-ray (Jira) — delivering $0.5M in annual TCO savings while maintaining engineering quality standards.
+- Led a cross-functional team through the full software delivery lifecycle, delivering a native mobile application as an MVP in 10 sprints (5 months).
+- **Awarded the Maersk Star Award (2019)** — the highest staff recognition level — for integrity, delivery focus, and quality standards maintained under significant personal adversity. Cited for ensuring no disruption to team deliveries and continuing to facilitate key vendor engagements in India and Serbia despite personal circumstances.
+
+---
+
+### Senior Project Manager
+**Infosys Ltd.** · Pune, India · *Client: major Australian telecommunications operator · Oct 2017 – Jul 2018*
+
+- People leader for a team of 30 — four direct reports each managing teams of 5–7, with full accountability for all outcomes across the group.
+- Drove NPS from -5 to +35 within six months through targeted delivery quality improvement, team development, and client satisfaction initiatives.
+- Reduced delivery timelines by up to 25% via value-stream mapping and process optimisation.
+- Designed a predictive staffing model to forecast resource needs based on anticipated project volume — adopted by the broader organisation for proactive capacity planning.
+
+---
+
+### Business Assurance Lead
+**AON Consulting** · Mumbai, India · *Clients: Prudential, CIBC, IHG Group · Feb 2015 – Sep 2017*
+
+- Led a team of 5–7 QA engineers delivering software assurance across global HRMS implementations in financial services (Prudential, CIBC) and hospitality (IHG Group).
+- Built a test automation capability from scratch — delivering 50%+ efficiency gains over approximately one year.
+- Led adoption of X-ray to replace HPQC — the same migration subsequently replicated at Maersk — enabling cost reduction and Atlassian ecosystem integration.
+
+---
+
+### Senior Software Engineer in Test
+**Collinson Group** · London, United Kingdom · *Priority Pass loyalty platform · Jun 2012 – Jun 2014*
+
+- Embedded member of a self-organised Scrum team building and maintaining the Priority Pass loyalty platform. Owned testing strategy; collaborated closely with the Product Owner on acceptance criteria. First deep exposure to high-functioning agile engineering practice in a financial services adjacency context.
+
+---
+
+### Test Lead · QA Lead
+**Globalgraphics → GlobalLogic** · Pune, India · *Nov 2007 – Feb 2012*
+
+- Built a QA team from scratch; maintained team and delivery continuity through a full organisational transition when Globalgraphics closed India operations and the team was absorbed by GlobalLogic.
+- Co-built an in-house performance management solution as informal Product Owner — gathering requirements, detailing specifications, and delivering a working system with two peers over six months.
+
+---
+
+### Early Career *(2002 – 2007)* · India
+**Qualitykiosk · Persistent Systems · Patni Computer Systems · Entercoms Software**
+
+Progressive QA and test engineering roles across banking and financial services (ICICI Bank, Kotak Mahindra Bank), telecommunications (Covad Communications), and an early-stage test automation startup. First exposure to automation through Shell scripting at Persistent Systems.
+
+---
+
+## RECOGNITION & PROFESSIONAL COMMUNITY
+
+**Maersk Star Award (2019)**
+Highest staff recognition level at A.P. Møller – Mærsk. Awarded with formal citation and financial reward (equivalent to one month's salary) for integrity, sustained delivery focus, and quality standards maintained under significant personal adversity.
+
+**Maersk Agile Community of Practice**
+Active and highly valued member. Regularly sought by peers for coaching and knowledge exchange. Co-hosted the 2022 Maersk Annual Agile Conference for 250+ participants.
+
+---
+
+## EDUCATION & CERTIFICATIONS
+
+| | |
+|---|---|
+| **Bachelor of Engineering** — Chemical Engineering | University of Mumbai, 2001 |
+| **ICAgile Certified Professional (ICP)** | ICAgile · Credentials available on request |
+| **Danish Language — PD2** | Prøve i Dansk 2 examination, May 2026 |
+
+---
+
+## TOOLS & METHODOLOGIES
+
+| Tool / Framework | Application |
+|---|---|
+| **Microsoft 365 incl. Power BI** | Portfolio dashboards, executive reporting, roadmaps, capacity planning, budgeting, business case authoring, stakeholder presentations |
+| **Atlassian Suite** (Jira, Confluence, X-ray) | Portfolio and project tracking, milestone management, backlog management, risk registers, process documentation, delivery reporting |
+| **Miro** | Operating model design, value-stream mapping, retrospective facilitation, structured problem-solving, stakeholder workshops |
+| **Azure DevOps** | Engineering tracking at epic and feature level in programme governance contexts |
+| **Delivery Frameworks** | Scrum, Kanban, Essential SAFe, PMI/Stage Gate, hybrid and plan-driven — applied pragmatically to context |
+
+---
+
+## LANGUAGES
+
+**English** — Full professional proficiency · Primary working language throughout career in Denmark, UK, and international contexts
+**Hindi & Marathi** — Native fluency
+**Danish** — Basic · PD2 examination completed June 2026
