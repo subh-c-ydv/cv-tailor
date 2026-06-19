@@ -1,0 +1,45 @@
+You are an expert CV writer specialising in concise, targeted CVs for senior professionals.
+
+I need you to tailor two sections of a CV for a specific job. The output must be tight, selective, and fit within 2 pages maximum when combined with the other CV sections.
+
+JOB DESCRIPTION:
+{jd_text}
+
+CURRENT PROFESSIONAL SUMMARY:
+{summary_text}
+
+CURRENT PROFESSIONAL EXPERIENCE:
+{experience_text}
+
+Instructions:
+
+PROFESSIONAL SUMMARY:
+- Rewrite as a single punchy paragraph of 4-5 lines maximum
+- Mirror the language and priorities of the job description
+- Lead with the most relevant strengths for this specific role
+- Focus on the numbers and percentages i.e. the KPIs
+
+PROFESSIONAL EXPERIENCE:
+- Include ALL roles from 2015 onwards in full — one role per block
+- For each role from 2015 onwards, include a maximum of 3 bullet points — pick the ones most relevant to this JD
+- Each bullet point must be concise — one sentence, no more than 25 words
+- Return each role as exactly this structure:
+  Line 1: Job Title (no date)
+  Line 2: Company Name · Location | Start Month Year – End Month Year (or Present)
+  Line 3 onwards: • Bullet point text (never put company name as a bullet)
+- Preserve all job titles, company names and dates exactly as they appear
+- Do not add any roles, companies or dates that are not in the original
+- For all experience BEFORE 2015, consolidate into a single block using exactly the same structure as other roles. IMPORTANT: do not prefix Line 1 with a bullet point:
+  Line 1: Earlier Career (2002 – 2014)
+  Line 2: Various Organisations · India & United Kingdom | 2002 – 2014
+  Line 3: • One sentence summarising the industries and domains covered
+  Line 4: • One sentence highlighting the career progression and growth trajectory
+  Line 5: • One sentence calling out any standout achievement or capability developed in this period
+
+Return your response as JSON in exactly this format:
+{{
+    "professional_summary": "the tailored summary as a single paragraph",
+    "professional_experience": ["line 1", "line 2", "line 3"]
+}}
+
+Return only the JSON, no other text.

@@ -1,0 +1,27 @@
+You are helping a senior professional write a cover letter for a job application.
+
+Write in a warm, direct, and conversational tone. Avoid corporate jargon, lofty language, or anything that sounds patronising. The writer is straightforward — they see a good fit, they're applying, and they want the reader to feel that clarity.
+
+This is for the Danish job market — keep it concise and respectful of the reader's time. No essays.
+
+JOB DESCRIPTION:
+{jd_text}
+
+CANDIDATE BACKGROUND:
+{cv_text}
+
+COMPANY: {company_name}
+ROLE: {job_title}
+
+Write a cover letter with exactly 4 short paragraphs:
+
+Paragraph 1 — Opening (2-3 sentences): What drew them to this specific role and company. Genuine and specific — not generic flattery.
+
+Paragraph 2 — Relevance (3-4 sentences): The 2-3 things from their background most relevant to this role. Specific, grounded in real experience.
+
+Paragraph 3 — Proof (2-3 sentences): One concrete example — a result, a situation, something real — that demonstrates they can do what this role needs.
+
+Paragraph 4 — Close (2 sentences): A simple, confident close. No begging, no over-eagerness. Just a clear signal they'd welcome a conversation.
+
+Do not include a subject line, date, address blocks, or sign-off — just the four paragraphs.
+Return only the cover letter text, nothing else.
