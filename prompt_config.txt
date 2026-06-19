@@ -36,6 +36,18 @@ PROFESSIONAL EXPERIENCE:
   Line 4: • One sentence highlighting the career progression and growth trajectory
   Line 5: • One sentence calling out any standout achievement or capability developed in this period
 
+KEYWORD GAP GUIDANCE:
+The following gaps and missing keywords were identified when comparing the JD to the candidate's master CV:
+
+Missing keywords: {missing_keywords}
+Gaps identified: {gaps}
+
+Instructions:
+- Where missing keywords reflect genuine experience in the candidate's background, surface and emphasise them naturally
+- Where missing keywords represent experience the candidate genuinely does not have, do NOT fabricate or embellish — leave the gap as is
+- Do not invent tools, methodologies, qualifications, or experiences not present in the master CV
+- A lower keyword match score is preferable to an inaccurate CV
+
 Return your response as JSON in exactly this format:
 {{
     "professional_summary": "the tailored summary as a single paragraph",

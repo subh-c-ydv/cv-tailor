@@ -1,37 +1,12 @@
 import anthropic
 import os
-import json
 from docx import Document
-from config import CV_PATH, JD_PATH, OUTPUTS_DIR
+from config import OUTPUTS_DIR
+from utils import read_jd, read_cv_text, extract_job_details
 
 
-def extract_job_details(jd_text, client):
-    message = client.messages.create(
-        model="claude-sonnet-4-6",
-        max_tokens=200,
-        messages=[{
-            "role": "user",
-            "content": f"""Extract the job title and company name from this job description.
-Return only JSON in exactly this format, no other text:
-{{
-    "job_title": "the job title",
-    "company_name": "the company name"
-}}
-
-JOB DESCRIPTION:
-{jd_text}"""
-        }]
-    )
-
-    response_text = message.content[0].text.strip()
-    if response_text.startswith("```"):
-        response_text = response_text.split("```")[1]
-        if response_text.startswith("json"):
-            response_text = response_text[4:]
-    return json.loads(response_text.strip())
-
-
-def generate_cover_letter(jd_text, cv_text, job_title, company_name, client):
+def generate_cover_letter(jd_text, cv_text, job_title, company_name, client,
+                          missing_keywords=None, gaps=None):
     with open("cover_letter_prompt.txt", "r") as f:
         prompt_template = f.read()
 
@@ -39,7 +14,9 @@ def generate_cover_letter(jd_text, cv_text, job_title, company_name, client):
         jd_text=jd_text,
         cv_text=cv_text,
         job_title=job_title,
-        company_name=company_name
+        company_name=company_name,
+        missing_keywords=', '.join(missing_keywords) if missing_keywords else 'None identified',
+        gaps=gaps if gaps else 'None identified'
     )
 
     message = client.messages.create(
@@ -119,19 +96,20 @@ def build_cover_letter_docx(cover_letter_text, job_title, company_name, filename
     doc.save(filename)
 
 
-def main(job_title=None, company_name=None, output_dir=None):
+def main(job_title=None, company_name=None, output_dir=None,
+         missing_keywords=None, gaps=None):
+
     print("\nReading job description...")
-    with open(JD_PATH, "r") as f:
-        jd_text = f.read()
+    jd_text = read_jd()
 
     print("Reading CV...")
-    doc = Document(CV_PATH)
-    cv_text = '\n'.join([p.text for p in doc.paragraphs if p.text.strip()])
+    cv_text = read_cv_text()
 
     client = anthropic.Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
 
     if not job_title or not company_name:
         print("Extracting job details...")
+        from utils import extract_job_details
         job_details = extract_job_details(jd_text, client)
         job_title = job_details["job_title"]
         company_name = job_details["company_name"]
@@ -144,7 +122,9 @@ def main(job_title=None, company_name=None, output_dir=None):
 
     print("Generating cover letter...")
     cover_letter_text = generate_cover_letter(
-        jd_text, cv_text, job_title, company_name, client
+        jd_text, cv_text, job_title, company_name, client,
+        missing_keywords=missing_keywords,
+        gaps=gaps
     )
 
     filename = os.path.join(

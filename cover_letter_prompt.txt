@@ -13,6 +13,15 @@ CANDIDATE BACKGROUND:
 COMPANY: {company_name}
 ROLE: {job_title}
 
+KEYWORD GAP GUIDANCE:
+Missing keywords: {missing_keywords}
+Gaps identified: {gaps}
+
+Instructions:
+- Where missing keywords reflect genuine experience, weave them in naturally
+- Do not fabricate or claim experience the candidate does not have
+- If a gap is structural, do not attempt to cover it — write around it honestly
+
 Write a cover letter with exactly 4 short paragraphs:
 
 Paragraph 1 — Opening (2-3 sentences): What drew them to this specific role and company. Genuine and specific — not generic flattery.

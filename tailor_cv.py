@@ -2,7 +2,8 @@ import anthropic
 import os
 import json
 from docx import Document
-from config import CV_PATH, JD_PATH, OUTPUTS_DIR
+from config import CV_PATH, OUTPUTS_DIR
+from utils import read_jd, extract_job_details
 
 
 def extract_cv_sections(docx_path):
@@ -73,33 +74,7 @@ def extract_cv_sections(docx_path):
     return sections
 
 
-def extract_job_details(jd_text, client):
-    message = client.messages.create(
-        model="claude-sonnet-4-6",
-        max_tokens=200,
-        messages=[{
-            "role": "user",
-            "content": f"""Extract the job title and company name from this job description.
-Return only JSON in exactly this format, no other text:
-{{
-    "job_title": "the job title",
-    "company_name": "the company name"
-}}
-
-JOB DESCRIPTION:
-{jd_text}"""
-        }]
-    )
-
-    response_text = message.content[0].text.strip()
-    if response_text.startswith("```"):
-        response_text = response_text.split("```")[1]
-        if response_text.startswith("json"):
-            response_text = response_text[4:]
-    return json.loads(response_text.strip())
-
-
-def tailor_with_claude(sections, jd_text, client):
+def tailor_with_claude(sections, jd_text, client, missing_keywords=None, gaps=None):
     summary_text = ' '.join(sections["professional_summary"])
     experience_text = '\n'.join(sections["professional_experience"])
 
@@ -109,7 +84,9 @@ def tailor_with_claude(sections, jd_text, client):
     prompt = prompt_template.format(
         jd_text=jd_text,
         summary_text=summary_text,
-        experience_text=experience_text
+        experience_text=experience_text,
+        missing_keywords=', '.join(missing_keywords) if missing_keywords else 'None identified',
+        gaps=gaps if gaps else 'None identified'
     )
 
     message = client.messages.create(
@@ -129,21 +106,23 @@ def tailor_with_claude(sections, jd_text, client):
     return json.loads(response_text)
 
 
-def main(output_dir=None):
+def main(job_title=None, company_name=None, output_dir=None,
+         missing_keywords=None, gaps=None):
+
     print("\nReading your CV...")
     sections = extract_cv_sections(CV_PATH)
 
     print("Reading job description...")
-    with open(JD_PATH, "r") as f:
-        jd_text = f.read()
+    jd_text = read_jd()
 
-    print("Extracting job title and company from JD...")
     client = anthropic.Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
-    job_details = extract_job_details(jd_text, client)
 
-    job_title = job_details["job_title"]
-    company_name = job_details["company_name"]
-    print(f"  → {job_title} at {company_name}")
+    if not job_title or not company_name:
+        print("Extracting job title and company from JD...")
+        job_details = extract_job_details(jd_text, client)
+        job_title = job_details["job_title"]
+        company_name = job_details["company_name"]
+        print(f"  → {job_title} at {company_name}")
 
     if output_dir is None:
         folder_name = f"{job_title} @ {company_name}".replace("/", "-")
@@ -151,7 +130,11 @@ def main(output_dir=None):
     os.makedirs(output_dir, exist_ok=True)
 
     print("Sending to Claude for tailoring (this may take 30 seconds)...")
-    tailored = tailor_with_claude(sections, jd_text, client)
+    tailored = tailor_with_claude(
+        sections, jd_text, client,
+        missing_keywords=missing_keywords,
+        gaps=gaps
+    )
 
     filename_base = f"Subhash_Yadav_{job_title}_{company_name}".replace(" ", "_")
 

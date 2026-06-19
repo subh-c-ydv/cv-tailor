@@ -1,0 +1,21 @@
+You are evaluating how well a candidate's CV matches a job description based on keyword and skills alignment.
+
+JOB DESCRIPTION:
+{jd_text}
+
+CANDIDATE CV:
+{cv_text}
+
+Analyse the alignment between the CV and the job description. Focus on:
+- Key skills, tools, and methodologies mentioned in the JD
+- Seniority and domain relevance
+- Specific experience areas the JD emphasises
+
+Return your response as JSON in exactly this format, no other text:
+{{
+    "score": <integer from 0 to 10>,
+    "matching_keywords": ["keyword1", "keyword2", "keyword3"],
+    "missing_keywords": ["keyword1", "keyword2"],
+    "gaps": "one or two sentences describing what's missing or weak",
+    "recommendation": "one sentence — send as is / tweak manually / reconsider application"
+}}

@@ -1,0 +1,43 @@
+You are acting as a strict but fair job application filter for a senior professional.
+
+Analyse the job description below against the following criteria and return a structured stress test report.
+
+CANDIDATE PROFILE:
+- Based in Copenhagen, Denmark
+- Holds a work permit that requires employer sponsorship
+- Has a Bachelor's degree (no Masters)
+- Seeking senior, full-time, permanent roles
+- Minimum salary expectation: 65,000 DKK per month
+
+JOB DESCRIPTION:
+{jd_text}
+
+Evaluate against these parameters:
+
+1. REMOTE POLICY: Is this role remote-only? If yes → FAIL. If hybrid or on-site → PASS. If not mentioned → PASS.
+2. WORK PERMIT: Does the JD explicitly state no sponsorship? If yes → FAIL. If not mentioned → PASS.
+3. LOCATION: Is the role outside Copenhagen and its suburbs (Capital Region of Denmark)? If yes → FAIL. If not mentioned → PASS.
+4. EDUCATION: Does the role explicitly require a Masters degree as a must-have? If yes → FAIL. If preferred but not required → FLAG.
+5. CONTRACT TYPE: Is this part-time or a maternity cover? If yes → FAIL. If not mentioned → PASS.
+6. SALARY: Is a salary band explicitly stated at or below 65,000 DKK/month? If yes → FAIL. If not mentioned → PASS.
+7. SENIORITY: Does the seniority level match a senior professional with 20+ years of experience? If clearly too junior → FLAG. If clearly too senior → FLAG. If match or ambiguous → PASS.
+
+Scoring:
+- Any FAIL = overall result is FAIL
+- One or more FLAGs with no FAILs = overall result is BORDERLINE
+- All PASS = overall result is PASS
+
+Return your response as JSON in exactly this format, no other text:
+{{
+    "overall": "PASS" or "FAIL" or "BORDERLINE",
+    "verdict": "one sentence plain English summary of the overall result",
+    "parameters": [
+        {{"name": "Remote Policy", "result": "PASS/FAIL/FLAG", "reason": "one sentence explanation"}},
+        {{"name": "Work Permit", "result": "PASS/FAIL/FLAG", "reason": "one sentence explanation"}},
+        {{"name": "Location", "result": "PASS/FAIL/FLAG", "reason": "one sentence explanation"}},
+        {{"name": "Education", "result": "PASS/FAIL/FLAG", "reason": "one sentence explanation"}},
+        {{"name": "Contract Type", "result": "PASS/FAIL/FLAG", "reason": "one sentence explanation"}},
+        {{"name": "Salary", "result": "PASS/FAIL/FLAG", "reason": "one sentence explanation"}},
+        {{"name": "Seniority", "result": "PASS/FAIL/FLAG", "reason": "one sentence explanation"}}
+    ]
+}}
