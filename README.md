@@ -11,7 +11,7 @@ CV Tailor automates and quality-gates the job application process. Instead of ta
 ```
 Job Description
       ↓
-Gate 1: Stress Test (10 parameters)
+Gate 1: Stress Test (11 parameters)
       ↓ FAIL → Stop
       ↓ BORDERLINE → Ask user
       ↓ PASS
@@ -38,6 +38,7 @@ Named output folder with all documents
 8. JD language — rules out Danish-only job descriptions
 9. Language requirement — rules out roles requiring native Danish or other non-English languages
 10. Cultural fit — rules out public sector or Danish-market-only organisations
+11. Ghost job indicator — flags roles with suspiciously little employer or location detail for on-site or hybrid positions
 
 ### Outputs
 
@@ -57,7 +58,8 @@ In batch mode, timestamped batch summaries are saved to `cv-outputs/batch-summar
 
 ```
 cv-tailor/                       <- repo (code only)
-├── menu.py                      <- main entry point
+├── app.py                       <- Streamlit UI (primary interface)
+├── menu.py                      <- terminal menu (companion interface)
 ├── stress_test.py               <- Gate 1
 ├── keyword_match.py             <- Gate 2
 ├── tailor_cv.py                 <- CV tailoring engine
@@ -74,7 +76,7 @@ cv-tailor/                       <- repo (code only)
 
 cv-inputs/                       <- outside repo (private)
 ├── master_cv.docx               <- your master CV goes here
-├── job_description.txt          <- single JD mode
+├── job_description.txt          <- single JD mode (terminal menu)
 └── jds/                         <- batch mode — drop JD files here
     └── archive/                 <- processed JDs moved here automatically
 
@@ -105,7 +107,7 @@ git clone https://github.com/subh-c-ydv/cv-tailor.git
 cd cv-tailor
 
 # Install Python dependencies
-pip3 install anthropic python-docx
+pip3 install anthropic python-docx streamlit
 
 # Install Node.js dependencies
 npm install docx
@@ -127,6 +129,16 @@ mkdir ../cv-inputs ../cv-outputs ../cv-inputs/jds
 ---
 
 ## Usage
+
+### Streamlit UI (recommended)
+
+```bash
+streamlit run app.py
+```
+
+Opens in your browser. Paste a JD, choose your mode from the sidebar, and run. Download buttons appear inline when documents are ready.
+
+### Terminal menu (companion)
 
 ```bash
 python3 menu.py
@@ -232,10 +244,11 @@ filename_base = f"Your_Name_{job_title}_{company_name}".replace(" ", "_")
 
 ## Roadmap (v2)
 
+- Batch mode tab in Streamlit UI
+- Settings panel to view and edit prompt config files in the browser
 - JD fetch from URL — paste a link, tool fetches the JD automatically
 - LinkedIn workaround via browser extension
-- Streamlit UI wrapper — browser-based interface
-- Multi-user support
+- Hosting on Streamlit Cloud
 
 ---
 
@@ -244,11 +257,17 @@ filename_base = f"Your_Name_{job_title}_{company_name}".replace(" ", "_")
 - [Anthropic Claude API](https://anthropic.com) — claude-sonnet-4-6
 - [python-docx](https://python-docx.readthedocs.io/) — reading the master CV
 - [docx (Node.js)](https://docx.js.org/) — generating Word documents
+- [Streamlit](https://streamlit.io/) — browser UI
 - Python 3.9 / Node.js 24
 
 ---
 
 ## Changelog
+
+### v1.2
+- Streamlit UI added as primary interface
+- Ghost job indicator added as stress test parameter 11
+- Terminal menu retained as companion interface
 
 ### v1.1
 - CV structure now configurable via `cv_structure.txt` — no hardcoded section headings
@@ -257,7 +276,6 @@ filename_base = f"Your_Name_{job_title}_{company_name}".replace(" ", "_")
 - Batch summaries saved to `cv-outputs/batch-summaries/` subfolder
 - JD preview shown in menu — always know what is loaded before running
 - npm PATH warning resolved
-- README updated with full changelog and adapter instructions
 
 ### v1.0
 - Stress test — 10 configurable parameters

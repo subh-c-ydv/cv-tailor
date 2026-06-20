@@ -36,6 +36,8 @@ Evaluate against these parameters:
 
 10. CULTURAL FIT: Is this a public sector, government, municipality, or Danish-market-only organisation? If yes → FAIL. If international company or global operations → PASS. If unclear → FLAG.
 
+11. GHOST JOB INDICATOR: Does the JD lack basic employer details such as company name, office location, team context, or hiring manager information — particularly for on-site or hybrid roles where location is material? If the JD is suspiciously vague on employer identity and location for a non-remote role → FLAG. If company name and location are clearly stated → PASS. If remote role with no location needed → PASS.
+
 Scoring:
 - Any FAIL = overall result is FAIL
 - One or more FLAGs with no FAILs = overall result is BORDERLINE
@@ -56,5 +58,6 @@ Return your response as JSON in exactly this format, no other text:
         {{"name": "JD Language", "result": "PASS/FAIL/FLAG", "reason": "one sentence explanation"}},
         {{"name": "Language Requirement", "result": "PASS/FAIL/FLAG", "reason": "one sentence explanation"}},
         {{"name": "Cultural Fit", "result": "PASS/FAIL/FLAG", "reason": "one sentence explanation"}}
+        {{"name": "Ghost Job Indicator", "result": "PASS/FAIL/FLAG", "reason": "one sentence explanation"}}
     ]
 }}
