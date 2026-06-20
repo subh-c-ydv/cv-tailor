@@ -107,13 +107,15 @@ def tailor_with_claude(sections, jd_text, client, missing_keywords=None, gaps=No
 
 
 def main(job_title=None, company_name=None, output_dir=None,
-         missing_keywords=None, gaps=None):
+         missing_keywords=None, gaps=None, jd_text=None):
 
     print("\nReading your CV...")
     sections = extract_cv_sections(CV_PATH)
 
-    print("Reading job description...")
-    jd_text = read_jd()
+    # Use passed jd_text if provided, otherwise read from file
+    if jd_text is None:
+        print("Reading job description...")
+        jd_text = read_jd()
 
     client = anthropic.Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
 

@@ -18,7 +18,8 @@ def print_menu():
     print("  4. Tailor CV only")
     print("  5. Generate Cover Letter only")
     print("  6. Both CV + Cover Letter")
-    print("  7. Exit")
+    print("  7. Batch Mode (process all JDs in cv-inputs/jds/)")
+    print("  8. Exit")
     print()
 
 
@@ -60,12 +61,12 @@ def run_full_pipeline(jd_text, cv_text, client):
     gaps = keyword_report.get("gaps", "")
 
     if score <= 3:
-        if not ask_proceed(f"Keyword match score is low ({score}/10). This role may not be a strong fit."):
+        if not ask_proceed(f"Keyword match score is low ({score}/10)."):
             print("\nStopped at keyword match.")
             return
 
     elif score <= 6:
-        if not ask_proceed(f"Keyword match score is moderate ({score}/10). Some gaps exist."):
+        if not ask_proceed(f"Keyword match score is moderate ({score}/10)."):
             print("\nStopped at keyword match.")
             return
 
@@ -80,10 +81,8 @@ def run_full_pipeline(jd_text, cv_text, client):
     output_dir = os.path.join(OUTPUTS_DIR, folder_name)
     os.makedirs(output_dir, exist_ok=True)
 
-    # Save keyword report
     save_keyword_report(keyword_report, output_dir)
 
-    # Build CV — pass keyword gaps
     print("\n--- Building CV ---")
     job_title, company_name, output_dir = tailor_main(
         job_title=job_title,
@@ -93,14 +92,14 @@ def run_full_pipeline(jd_text, cv_text, client):
         gaps=gaps
     )
 
-    # Build cover letter — pass keyword gaps
     print("\n--- Generating Cover Letter ---")
     cover_main(
         job_title=job_title,
         company_name=company_name,
         output_dir=output_dir,
         missing_keywords=missing_keywords,
-        gaps=gaps
+        gaps=gaps,
+        jd_text=jd_text
     )
 
     print(f"\n✅  All files saved to: {output_dir}")
@@ -111,7 +110,7 @@ def main():
 
     while True:
         print_menu()
-        choice = input("Enter your choice (1-7): ").strip()
+        choice = input("Enter your choice (1-8): ").strip()
 
         if choice == "1":
             print("\n--- Stress Test ---")
@@ -155,11 +154,16 @@ def main():
             print(f"\n✅  All files saved to: {output_dir}")
 
         elif choice == "7":
+            print("\n--- Batch Mode ---")
+            from batch_processor import run_batch
+            run_batch()
+
+        elif choice == "8":
             print("\nGood luck with the applications, Subhash. Closing.\n")
             break
 
         else:
-            print("\n  Please enter 1 through 7.")
+            print("\n  Please enter 1 through 8.")
 
         print("\n" + "-" * 50)
         input("Press Enter to return to the menu...")

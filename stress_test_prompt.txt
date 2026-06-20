@@ -20,7 +20,10 @@ Evaluate against these parameters:
 4. EDUCATION: Does the role explicitly require a Masters degree as a must-have? If yes → FAIL. If preferred but not required → FLAG.
 5. CONTRACT TYPE: Is this part-time or a maternity cover? If yes → FAIL. If not mentioned → PASS.
 6. SALARY: Is a salary band explicitly stated at or below 65,000 DKK/month? If yes → FAIL. If not mentioned → PASS.
-7. SENIORITY: Does the seniority level match a senior professional with 20+ years of experience? If clearly too junior → FLAG. If clearly too senior → FLAG. If match or ambiguous → PASS.
+7. SENIORITY: Does the seniority level match a senior professional with 20+ years of experience? If clearly too junior → FLAG. If clearly too senior
+8. JOB DESCRIPTION LANGUAGE: Is the JD text written in Danish? If yes → FAIL.
+9. LANGUAGE REQUIREMENT: Is the JD asking for fluency in Danish, German or other non-English languages? If yes → FAIL. If not mentioned - PASS.
+10. CULTURAL FIT: Is the company decidely Danish meaning it operates mainly in Denmark for e.g. public sector companies? If yes → FAIL. If international company with global operations - PASS.
 
 Scoring:
 - Any FAIL = overall result is FAIL

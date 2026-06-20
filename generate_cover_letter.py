@@ -97,10 +97,12 @@ def build_cover_letter_docx(cover_letter_text, job_title, company_name, filename
 
 
 def main(job_title=None, company_name=None, output_dir=None,
-         missing_keywords=None, gaps=None):
+         missing_keywords=None, gaps=None, jd_text=None):
 
-    print("\nReading job description...")
-    jd_text = read_jd()
+    # Use passed jd_text if provided, otherwise read from file
+    if jd_text is None:
+        print("\nReading job description...")
+        jd_text = read_jd()
 
     print("Reading CV...")
     cv_text = read_cv_text()
@@ -109,7 +111,6 @@ def main(job_title=None, company_name=None, output_dir=None,
 
     if not job_title or not company_name:
         print("Extracting job details...")
-        from utils import extract_job_details
         job_details = extract_job_details(jd_text, client)
         job_title = job_details["job_title"]
         company_name = job_details["company_name"]
