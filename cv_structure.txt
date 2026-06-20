@@ -1,0 +1,13 @@
+# CV Structure Configuration
+# Define your CV section headings exactly as they appear in your master CV
+# Type: narrative (text Claude will tailor) or table (preserved as-is)
+# Format: HEADING | type
+
+NAME | header
+PROFESSIONAL SUMMARY | narrative
+CORE COMPETENCIES | table
+PROFESSIONAL EXPERIENCE | narrative
+RECOGNITION & PROFESSIONAL COMMUNITY | table
+EDUCATION & CERTIFICATIONS | table
+TOOLS & METHODOLOGIES | table
+LANGUAGES | table

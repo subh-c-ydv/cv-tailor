@@ -6,17 +6,56 @@ from config import CV_PATH, OUTPUTS_DIR
 from utils import read_jd, extract_job_details
 
 
-def extract_cv_sections(docx_path):
+def load_cv_structure():
+    """Load CV section structure from cv_structure.txt"""
+    structure = {
+        "header_key": "header",
+        "narrative_sections": [],
+        "table_sections": [],
+        "section_map": {}
+    }
+
+    with open("cv_structure.txt", "r") as f:
+        for line in f:
+            line = line.strip()
+            if not line or line.startswith("#"):
+                continue
+
+            parts = [p.strip() for p in line.split("|")]
+            if len(parts) != 2:
+                continue
+
+            heading, section_type = parts[0], parts[1].lower()
+
+            if section_type == "header":
+                structure["section_map"][heading] = "header"
+            elif section_type == "narrative":
+                structure["narrative_sections"].append(heading)
+                structure["section_map"][heading] = heading.lower().replace(" ", "_").replace("&", "and")
+            elif section_type == "table":
+                structure["table_sections"].append(heading)
+                structure["section_map"][heading] = heading.lower().replace(" ", "_").replace("&", "and")
+
+    return structure
+
+
+def extract_cv_sections(docx_path, structure):
+    """Extract text from CV using structure defined in cv_structure.txt"""
     doc = Document(docx_path)
 
+    # Build sections dict dynamically from structure
     sections = {
         "header": [],
-        "professional_summary": [],
-        "professional_experience": [],
         "tables": {}
     }
 
+    # Add narrative sections
+    for heading in structure["narrative_sections"]:
+        key = structure["section_map"][heading]
+        sections[key] = []
+
     current_section = "header"
+    current_key = "header"
 
     for element in doc.element.body:
         if element.tag.endswith('}p'):
@@ -27,34 +66,17 @@ def extract_cv_sections(docx_path):
             if not text:
                 continue
 
-            if text == "PROFESSIONAL SUMMARY":
-                current_section = "professional_summary"
-                continue
-            elif text == "CORE COMPETENCIES":
-                current_section = "core_competencies"
-                continue
-            elif text == "PROFESSIONAL EXPERIENCE":
-                current_section = "professional_experience"
-                continue
-            elif text == "RECOGNITION & PROFESSIONAL COMMUNITY":
-                current_section = "recognition"
-                continue
-            elif text == "EDUCATION & CERTIFICATIONS":
-                current_section = "education"
-                continue
-            elif text == "TOOLS & METHODOLOGIES":
-                current_section = "tools"
-                continue
-            elif text == "LANGUAGES":
-                current_section = "languages"
+            # Check if this line is a section heading
+            if text in structure["section_map"]:
+                current_section = text
+                current_key = structure["section_map"][text]
                 continue
 
-            if current_section == "header":
+            # Add to appropriate section
+            if current_key == "header":
                 sections["header"].append(text)
-            elif current_section == "professional_summary":
-                sections["professional_summary"].append(text)
-            elif current_section == "professional_experience":
-                sections["professional_experience"].append(text)
+            elif current_section in structure["narrative_sections"]:
+                sections[current_key].append(text)
 
         elif element.tag.endswith('}tbl'):
             from docx.oxml.ns import qn
@@ -69,14 +91,35 @@ def extract_cv_sections(docx_path):
                 if row_cells:
                     table_texts.append(row_cells)
 
-            sections["tables"][current_section] = table_texts
+            if current_section in structure["table_sections"]:
+                sections["tables"][current_key] = table_texts
 
     return sections
 
 
-def tailor_with_claude(sections, jd_text, client, missing_keywords=None, gaps=None):
-    summary_text = ' '.join(sections["professional_summary"])
-    experience_text = '\n'.join(sections["professional_experience"])
+def tailor_with_claude(sections, jd_text, client, structure,
+                       missing_keywords=None, gaps=None):
+    """Send narrative sections to Claude for tailoring"""
+
+    # Build narrative text dynamically from structure
+    narrative_texts = {}
+    for heading in structure["narrative_sections"]:
+        key = structure["section_map"][heading]
+        if key in sections:
+            narrative_texts[heading] = '\n'.join(sections[key])
+
+    # Build the summary and experience text for the prompt
+    summary_key = None
+    experience_key = None
+    for heading in structure["narrative_sections"]:
+        h_lower = heading.lower()
+        if "summary" in h_lower:
+            summary_key = structure["section_map"][heading]
+        if "experience" in h_lower:
+            experience_key = structure["section_map"][heading]
+
+    summary_text = ' '.join(sections.get(summary_key, [])) if summary_key else ''
+    experience_text = '\n'.join(sections.get(experience_key, [])) if experience_key else ''
 
     with open("prompt_config.txt", "r") as f:
         prompt_template = f.read()
@@ -109,10 +152,12 @@ def tailor_with_claude(sections, jd_text, client, missing_keywords=None, gaps=No
 def main(job_title=None, company_name=None, output_dir=None,
          missing_keywords=None, gaps=None, jd_text=None):
 
-    print("\nReading your CV...")
-    sections = extract_cv_sections(CV_PATH)
+    print("\nLoading CV structure...")
+    structure = load_cv_structure()
 
-    # Use passed jd_text if provided, otherwise read from file
+    print("Reading your CV...")
+    sections = extract_cv_sections(CV_PATH, structure)
+
     if jd_text is None:
         print("Reading job description...")
         jd_text = read_jd()
@@ -133,7 +178,7 @@ def main(job_title=None, company_name=None, output_dir=None,
 
     print("Sending to Claude for tailoring (this may take 30 seconds)...")
     tailored = tailor_with_claude(
-        sections, jd_text, client,
+        sections, jd_text, client, structure,
         missing_keywords=missing_keywords,
         gaps=gaps
     )
@@ -145,7 +190,12 @@ def main(job_title=None, company_name=None, output_dir=None,
         "professional_summary": tailored["professional_summary"],
         "professional_experience": tailored["professional_experience"],
         "tables": sections["tables"],
-        "filename": os.path.join(output_dir, filename_base)
+        "filename": os.path.join(output_dir, filename_base),
+        "structure": {
+            "narrative_sections": structure["narrative_sections"],
+            "table_sections": structure["table_sections"],
+            "section_map": structure["section_map"]
+        }
     }
 
     with open("cv_data.json", "w") as f:

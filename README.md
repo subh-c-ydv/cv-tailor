@@ -69,7 +69,8 @@ cv-tailor/                       <- repo (code only)
 ├── prompt_config.txt            <- CV tailoring prompt (editable)
 ├── cover_letter_prompt.txt      <- Cover letter prompt (editable)
 ├── stress_test_prompt.txt       <- Stress test parameters (editable)
-└── keyword_match_prompt.txt     <- Keyword match prompt (editable)
+├── keyword_match_prompt.txt     <- Keyword match prompt (editable)
+└── cv_structure.txt             <- CV section headings and types (editable)
 
 cv-inputs/                       <- outside repo (private)
 ├── master_cv.docx               <- your master CV goes here
@@ -79,8 +80,8 @@ cv-inputs/                       <- outside repo (private)
 cv-outputs/                      <- outside repo
 ├── batch_summary_YYYY_MM_DD_HH_MM.txt
 └── Job Title @ Company/
-    ├── Subhash_Yadav_Job_Title_Company.docx
-    ├── Subhash_Yadav_Cover_Letter_Job_Title_Company.docx
+    ├── Your_Name_Job_Title_Company.docx
+    ├── Your_Name_Cover_Letter_Job_Title_Company.docx
     └── keyword_match_report.txt
 ```
 
@@ -118,7 +119,7 @@ source ~/.zshrc
 # Create input and output folders outside the repo
 mkdir ../cv-inputs ../cv-outputs ../cv-inputs/jds
 
-# Add your master CV to cv-inputs/
+# Add your master CV to cv-inputs/ named master_cv.docx
 ```
 
 ---
@@ -159,7 +160,7 @@ python3 menu.py
 
 ## Configuration
 
-All prompts are stored as plain text files and can be edited without touching any code:
+All prompts and structure files are plain text and can be edited without touching any code:
 
 | File | Controls |
 |---|---|
@@ -167,6 +168,40 @@ All prompts are stored as plain text files and can be edited without touching an
 | `cover_letter_prompt.txt` | Tone and structure of the cover letter |
 | `stress_test_prompt.txt` | Stress test parameters and scoring logic |
 | `keyword_match_prompt.txt` | How Claude scores keyword alignment |
+| `cv_structure.txt` | CV section headings and types (narrative or table) |
+
+---
+
+## Adapting to your CV structure
+
+CV Tailor reads your CV section headings from `cv_structure.txt`. Edit this file to match your own CV exactly.
+
+Each line follows this format:
+
+```
+SECTION HEADING | type
+```
+
+Three types are supported:
+
+- `header` — your name and contact info block (always first)
+- `narrative` — sections Claude will tailor (summary, experience)
+- `table` — sections preserved exactly as-is (skills, education, certifications, etc.)
+
+Example for a standard CV:
+
+```
+NAME | header
+PROFESSIONAL SUMMARY | narrative
+CORE COMPETENCIES | table
+PROFESSIONAL EXPERIENCE | narrative
+EDUCATION & CERTIFICATIONS | table
+SKILLS | table
+LANGUAGES | table
+```
+
+Headings must match your CV document exactly, including capitalisation and punctuation.
+Lines starting with # are treated as comments and ignored.
 
 ---
 
@@ -180,10 +215,13 @@ The CV tailoring and cover letter prompts explicitly instruct Claude:
 
 ---
 
-## Tech debt
+## Naming your output files
 
-- npm PATH warning flagged on initial setup — to be resolved
-- JD fetching from URLs (LinkedIn workaround) — planned for v2
+By default, output files include the candidate name in the filename. To change this, update the `filename_base` variable in `tailor_cv.py` and `generate_cover_letter.py`:
+
+```python
+filename_base = f"Your_Name_{job_title}_{company_name}".replace(" ", "_")
+```
 
 ---
 
@@ -202,3 +240,24 @@ The CV tailoring and cover letter prompts explicitly instruct Claude:
 - [python-docx](https://python-docx.readthedocs.io/) — reading the master CV
 - [docx (Node.js)](https://docx.js.org/) — generating Word documents
 - Python 3.9 / Node.js 24
+
+---
+
+## Changelog
+
+### v1.1
+- CV structure now configurable via `cv_structure.txt` — no hardcoded section headings
+- Master CV filename genericised to `master_cv.docx`
+- npm PATH warning resolved
+
+### v1.0
+- Stress test — 10 configurable parameters
+- Keyword match with gap analysis
+- Two-gate pipeline — Stress Test then Keyword Match before building documents
+- CV tailoring engine with anti-hallucination guardrails
+- Cover letter generator — warm, concise, Danish market appropriate
+- Batch mode with interactive borderline processing
+- Timestamped batch summary saved to cv-outputs/
+- Gap injection — missing keywords flow silently into CV and cover letter prompts
+- JD context leak fix for batch mode
+- Full menu — 8 options
