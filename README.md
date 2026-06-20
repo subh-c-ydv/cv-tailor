@@ -49,7 +49,7 @@ For each role that clears both gates, the tool generates:
 
 All outputs land in a named folder: `cv-outputs/Job Title @ Company/`
 
-In batch mode, a timestamped batch summary is saved to `cv-outputs/`.
+In batch mode, timestamped batch summaries are saved to `cv-outputs/batch-summaries/`.
 
 ---
 
@@ -76,10 +76,12 @@ cv-inputs/                       <- outside repo (private)
 ├── master_cv.docx               <- your master CV goes here
 ├── job_description.txt          <- single JD mode
 └── jds/                         <- batch mode — drop JD files here
+    └── archive/                 <- processed JDs moved here automatically
 
 cv-outputs/                      <- outside repo
-├── batch_summary_YYYY_MM_DD_HH_MM.txt
-└── Job Title @ Company/
+├── batch-summaries/             <- timestamped batch summary files
+│   └── batch_summary_YYYY_MM_DD_HH_MM.txt
+└── Job Title @ Company/         <- one folder per role that passed both gates
     ├── Your_Name_Job_Title_Company.docx
     ├── Your_Name_Cover_Letter_Job_Title_Company.docx
     └── keyword_match_report.txt
@@ -143,18 +145,21 @@ python3 menu.py
 8. Exit
 ```
 
-### Single JD mode
+The menu shows a preview of the JD currently loaded in `job_description.txt` so you always know what is queued for single mode before running.
+
+### Single JD mode (options 1-6)
 
 1. Paste your job description into `cv-inputs/job_description.txt`
 2. Run `python3 menu.py`
 3. Choose option 3 for the full pipeline
 
-### Batch mode
+### Batch mode (option 7)
 
 1. Drop multiple JD `.txt` files into `cv-inputs/jds/`
 2. Run `python3 menu.py`
 3. Choose option 7
 4. Review the batch summary and optionally process borderline roles interactively
+5. Processed JD files are automatically archived to `cv-inputs/jds/archive/`
 
 ---
 
@@ -247,8 +252,12 @@ filename_base = f"Your_Name_{job_title}_{company_name}".replace(" ", "_")
 
 ### v1.1
 - CV structure now configurable via `cv_structure.txt` — no hardcoded section headings
-- Master CV filename genericised to `master_cv.docx`
+- Master CV filename genericised to `master_cv.docx` — ready for public sharing
+- Processed JD files automatically archived to `cv-inputs/jds/archive/` after batch run
+- Batch summaries saved to `cv-outputs/batch-summaries/` subfolder
+- JD preview shown in menu — always know what is loaded before running
 - npm PATH warning resolved
+- README updated with full changelog and adapter instructions
 
 ### v1.0
 - Stress test — 10 configurable parameters
