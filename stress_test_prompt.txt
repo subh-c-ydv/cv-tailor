@@ -8,6 +8,8 @@ CANDIDATE PROFILE:
 - Has a Bachelor's degree (no Masters)
 - Seeking senior, full-time, permanent roles
 - Minimum salary expectation: 65,000 DKK per month
+- Native English speaker with basic Danish (PD2 completed)
+- Best suited for international companies with global operations
 
 JOB DESCRIPTION:
 {jd_text}
@@ -15,15 +17,24 @@ JOB DESCRIPTION:
 Evaluate against these parameters:
 
 1. REMOTE POLICY: Is this role remote-only? If yes → FAIL. If hybrid or on-site → PASS. If not mentioned → PASS.
-2. WORK PERMIT: Does the JD explicitly state no sponsorship? If yes → FAIL. If not mentioned → PASS.
-3. LOCATION: Is the role outside Copenhagen and its suburbs (Capital Region of Denmark)? If yes → FAIL. If not mentioned → PASS.
-4. EDUCATION: Does the role explicitly require a Masters degree as a must-have? If yes → FAIL. If preferred but not required → FLAG.
-5. CONTRACT TYPE: Is this part-time or a maternity cover? If yes → FAIL. If not mentioned → PASS.
-6. SALARY: Is a salary band explicitly stated at or below 65,000 DKK/month? If yes → FAIL. If not mentioned → PASS.
-7. SENIORITY: Does the seniority level match a senior professional with 20+ years of experience? If clearly too junior → FLAG. If clearly too senior
-8. JOB DESCRIPTION LANGUAGE: Is the JD text written in Danish? If yes → FAIL.
-9. LANGUAGE REQUIREMENT: Is the JD asking for fluency in Danish, German or other non-English languages? If yes → FAIL. If not mentioned - PASS.
-10. CULTURAL FIT: Is the company decidely Danish meaning it operates mainly in Denmark for e.g. public sector companies? If yes → FAIL. If international company with global operations - PASS.
+
+2. WORK PERMIT: Does the JD explicitly state no sponsorship or that candidates must already hold a valid work permit? If yes → FAIL. If not mentioned → PASS.
+
+3. LOCATION: Is the role located outside Copenhagen and its suburbs (Capital Region of Denmark)? If yes → FAIL. If the role mentions multiple locations including Copenhagen → FLAG. If not mentioned → PASS.
+
+4. EDUCATION: Does the role explicitly require a Masters degree as a non-negotiable must-have? If yes → FAIL. If Masters is preferred but not required → FLAG. If Bachelor's is sufficient or not mentioned → PASS.
+
+5. CONTRACT TYPE: Is this a part-time role, maternity cover, or fixed-term contract? If yes → FAIL. If permanent full-time or not mentioned → PASS.
+
+6. SALARY: Is a salary band explicitly stated at or below 65,000 DKK per month? If yes → FAIL. If not mentioned → PASS.
+
+7. SENIORITY: Does the seniority level match a senior professional with 20+ years of experience? If clearly too junior (e.g. graduate, junior, associate level) → FLAG. If clearly too senior (e.g. C-suite, VP, Director of Directors) → FLAG. If good match or ambiguous → PASS.
+
+8. JD LANGUAGE: Is the job description written predominantly or entirely in Danish? If yes → FAIL. If bilingual (Danish and English) → FLAG. If written in English → PASS.
+
+9. LANGUAGE REQUIREMENT: Does the role require native or fluent Danish, German, or other non-English languages as a must-have? If native/fluent Danish or other language required → FAIL. If professional working proficiency in Danish required → FLAG. If English is sufficient or language not mentioned → PASS.
+
+10. CULTURAL FIT: Is this a public sector, government, municipality, or Danish-market-only organisation? If yes → FAIL. If international company or global operations → PASS. If unclear → FLAG.
 
 Scoring:
 - Any FAIL = overall result is FAIL
@@ -41,6 +52,9 @@ Return your response as JSON in exactly this format, no other text:
         {{"name": "Education", "result": "PASS/FAIL/FLAG", "reason": "one sentence explanation"}},
         {{"name": "Contract Type", "result": "PASS/FAIL/FLAG", "reason": "one sentence explanation"}},
         {{"name": "Salary", "result": "PASS/FAIL/FLAG", "reason": "one sentence explanation"}},
-        {{"name": "Seniority", "result": "PASS/FAIL/FLAG", "reason": "one sentence explanation"}}
+        {{"name": "Seniority", "result": "PASS/FAIL/FLAG", "reason": "one sentence explanation"}},
+        {{"name": "JD Language", "result": "PASS/FAIL/FLAG", "reason": "one sentence explanation"}},
+        {{"name": "Language Requirement", "result": "PASS/FAIL/FLAG", "reason": "one sentence explanation"}},
+        {{"name": "Cultural Fit", "result": "PASS/FAIL/FLAG", "reason": "one sentence explanation"}}
     ]
 }}
