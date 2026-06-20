@@ -269,7 +269,9 @@ def save_batch_summary(results):
     """Save batch summary to cv-outputs/ with timestamp"""
     timestamp = datetime.now().strftime("%Y_%m_%d_%H_%M")
     filename = f"batch_summary_{timestamp}.txt"
-    filepath = os.path.join(OUTPUTS_DIR, filename)
+    batch_summaries_dir = os.path.join(OUTPUTS_DIR, "batch-summaries")
+    os.makedirs(batch_summaries_dir, exist_ok=True)
+    filepath = os.path.join(batch_summaries_dir, filename)
 
     lines = [
         "BATCH SUMMARY",
