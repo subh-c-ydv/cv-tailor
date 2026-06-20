@@ -72,7 +72,7 @@ cv-tailor/                       <- repo (code only)
 └── keyword_match_prompt.txt     <- Keyword match prompt (editable)
 
 cv-inputs/                       <- outside repo (private)
-├── MasterCV_Subhash_Yadav_v2.docx
+├── master_cv.docx               <- your master CV goes here
 ├── job_description.txt          <- single JD mode
 └── jds/                         <- batch mode — drop JD files here
 
