@@ -1,4 +1,5 @@
 import os
+import shutil
 import anthropic
 from datetime import datetime
 from config import OUTPUTS_DIR
@@ -9,9 +10,26 @@ def get_jd_files():
     """Scan cv-inputs/jds/ for all .txt files"""
     jds_folder = os.path.join(os.path.dirname(__file__), "..", "cv-inputs", "jds")
     os.makedirs(jds_folder, exist_ok=True)
-
     files = [f for f in os.listdir(jds_folder) if f.endswith(".txt")]
     return jds_folder, sorted(files)
+
+
+def archive_jd_file(jds_folder, filename):
+    """Move a processed JD file to the archive folder"""
+    archive_folder = os.path.join(jds_folder, "archive")
+    os.makedirs(archive_folder, exist_ok=True)
+
+    src = os.path.join(jds_folder, filename)
+    dst = os.path.join(archive_folder, filename)
+
+    # If a file with the same name already exists in archive, add timestamp
+    if os.path.exists(dst):
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        name, ext = os.path.splitext(filename)
+        dst = os.path.join(archive_folder, f"{name}_{timestamp}{ext}")
+
+    shutil.move(src, dst)
+    print(f"  Archived: {filename}")
 
 
 def read_jd_file(jds_folder, filename):
@@ -96,7 +114,8 @@ def process_single_jd(jd_text, cv_text, client):
         company_name=company_name,
         output_dir=output_dir,
         missing_keywords=missing_keywords,
-        gaps=gaps
+        gaps=gaps,
+        jd_text=jd_text
     )
 
     print("\n--- Generating Cover Letter ---")
@@ -115,7 +134,6 @@ def process_single_jd(jd_text, cv_text, client):
 
 def process_borderline_interactively(borderline_results, cv_text, client):
     """Offer to process borderline roles interactively after batch run"""
-    from stress_test import run_stress_test, print_stress_test_report
     from keyword_match import run_keyword_match, print_keyword_report, save_keyword_report
     from tailor_cv import main as tailor_main
     from generate_cover_letter import main as cover_main
@@ -167,7 +185,6 @@ def process_borderline_interactively(borderline_results, cv_text, client):
             print(f"\n  Skipping {label}.")
             continue
 
-        # Extract job details if not already known
         job_title = r["job_title"]
         company_name = r["company_name"]
 
@@ -182,7 +199,6 @@ def process_borderline_interactively(borderline_results, cv_text, client):
         output_dir = os.path.join(OUTPUTS_DIR, folder_name)
         os.makedirs(output_dir, exist_ok=True)
 
-        # Run keyword match if not already done
         missing_keywords = r.get("missing_keywords", [])
         gaps = r.get("gaps", "")
 
@@ -200,7 +216,8 @@ def process_borderline_interactively(borderline_results, cv_text, client):
             company_name=company_name,
             output_dir=output_dir,
             missing_keywords=missing_keywords,
-            gaps=gaps
+            gaps=gaps,
+            jd_text=jd_text
         )
 
         print("\n--- Generating Cover Letter ---")
@@ -317,6 +334,7 @@ def run_batch():
         print("=" * 50)
 
         jd_text = read_jd_file(jds_folder, filename)
+        print(f"\n  DEBUG: First 100 chars of jd_text: {jd_text[:100]}")
 
         try:
             result = process_single_jd(jd_text, cv_text, client)
@@ -344,6 +362,10 @@ def run_batch():
                 "output_dir": None,
                 "jd_text": jd_text
             })
+
+        finally:
+            # Always archive the JD file after processing
+            archive_jd_file(jds_folder, filename)
 
     # Print and save batch summary
     print_batch_summary(results)

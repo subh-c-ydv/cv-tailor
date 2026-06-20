@@ -1,8 +1,43 @@
 import os
 import anthropic
 from utils import read_jd, read_cv_text, extract_job_details
-from config import OUTPUTS_DIR
+from config import OUTPUTS_DIR, JD_PATH
 
+
+def get_current_jd_preview():
+    """Show first 3 non-empty lines from job_description.txt"""
+    try:
+        with open(JD_PATH, "r") as f:
+            content = f.read().strip()
+
+        if not content:
+            return "Empty — paste a JD to get started"
+
+        lines = [l.strip() for l in content.split('\n') if l.strip()]
+        preview = " | ".join(lines[:3])
+        return preview[:100] + "..." if len(preview) > 100 else preview
+
+    except FileNotFoundError:
+        return "File not found — create cv-inputs/job_description.txt"
+
+        lines = [l.strip() for l in content.split('\n') if l.strip()]
+
+        # Try to find a line that looks like a job title or company name
+        for line in lines[:20]:
+            lower = line.lower()
+            # Skip short lines and boilerplate
+            if len(line) < 5:
+                continue
+            if any(lower.startswith(phrase) for phrase in skip_phrases):
+                continue
+            # Skip lines that are just URLs or emails
+            if line.startswith("http") or "@" in line:
+                continue
+            # This line looks meaningful — use it
+            return line[:80] + "..." if len(line) > 80 else line
+
+        # Fallback — just return the first non-empty line truncated
+        return lines[0][:80] + "..." if lines else "Empty"
 
 def print_header():
     print("\n" + "=" * 50)
@@ -11,6 +46,7 @@ def print_header():
 
 
 def print_menu():
+    preview = get_current_jd_preview()
     print("\nWhat would you like to do?\n")
     print("  1. Stress Test only")
     print("  2. Keyword Match only")
@@ -20,6 +56,9 @@ def print_menu():
     print("  6. Both CV + Cover Letter")
     print("  7. Batch Mode (process all JDs in cv-inputs/jds/)")
     print("  8. Exit")
+    print()
+    print(f"  Single mode JD (options 1-6):")
+    print(f"  → {preview}")
     print()
 
 
@@ -89,7 +128,8 @@ def run_full_pipeline(jd_text, cv_text, client):
         company_name=company_name,
         output_dir=output_dir,
         missing_keywords=missing_keywords,
-        gaps=gaps
+        gaps=gaps,
+        jd_text=jd_text
     )
 
     print("\n--- Generating Cover Letter ---")
