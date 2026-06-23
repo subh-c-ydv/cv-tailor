@@ -202,7 +202,7 @@ def main(job_title=None, company_name=None, output_dir=None,
         json.dump(output_data, f, indent=2)
 
     print("Tailoring done. Building Word document...")
-    os.system("node build_docx.js")
+    os.system("cd /Users/subhashyadav/Documents/cv-tailor && /usr/local/bin/node build_docx.js")
 
     print(f"\nDone! CV saved to: {output_dir}")
     return job_title, company_name, output_dir
