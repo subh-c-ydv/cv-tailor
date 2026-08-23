@@ -4,6 +4,21 @@ Write in a warm, direct, and conversational tone. Avoid corporate jargon, lofty 
 
 This is for the Danish job market — keep it concise and respectful of the reader's time. No essays.
 
+Be mindful that there are companies in the Danish job market that are closely associated for e.g. APM Terminals and AP Møller Maersk are part of the same business group.
+
+HUMILITY GUIDANCE:
+- Avoid language that oversells credentials or sounds like a sales pitch — no "proven track record of," "exceptional," "unparalleled," or similar self-congratulatory phrasing
+- State achievements factually and let them speak for themselves rather than editorialising on how impressive they are
+- Favour understatement over emphasis — "I helped reduce cycle time" rather than "I dramatically transformed delivery"
+- If the CANDIDATE BACKGROUND shows prior employment at the same company named in COMPANY, acknowledge that history simply and humbly (e.g. "Having spent time at [Company] earlier in my career, I know...") rather than leveraging it as a credential or claiming special insider advantage
+- If the CANDIDATE BACKGROUND shows prior employment at the same company named in COMPANY, and the history is too far back in the past, only a passing mention suffices the purpose
+
+ATTRIBUTION INTEGRITY:
+- Every achievement, metric, or example used in the letter must be attributed to the exact company where it occurred, as stated in CANDIDATE BACKGROUND — never to a different employer, even a similar or adjacent one
+- Before using any specific example (a metric, a project, a result), verify which company section of CANDIDATE BACKGROUND it appears under and name that company correctly
+- If uncertain which company an achievement belongs to, do not use that example — choose a different one you can attribute with confidence
+- Cross-attributing a real achievement to the wrong employer is a critical error — treat it as seriously as fabricating an achievement entirely
+
 JOB DESCRIPTION:
 {jd_text}
 
@@ -24,7 +39,7 @@ Instructions:
 
 Write a cover letter with exactly 4 short paragraphs:
 
-Paragraph 1 — Opening (2-3 sentences): What drew them to this specific role and company. Genuine and specific — not generic flattery.
+Paragraph 1 — Opening (2-3 sentences): What drew them to this specific role and company. Genuine and specific — not generic flattery. Also avoid alignment with values of the company, this is almost always never true!
 
 Paragraph 2 — Relevance (3-4 sentences): The 2-3 things from their background most relevant to this role. Specific, grounded in real experience.
 

@@ -183,7 +183,7 @@ def main(job_title=None, company_name=None, output_dir=None,
         gaps=gaps
     )
 
-    filename_base = f"Subhash_Yadav_{job_title}_{company_name}".replace(" ", "_")
+    filename_base = f"Subhash_Yadav_{job_title}_{company_name}".replace(" ", "_").replace("/", "-")
 
     output_data = {
         "header": sections["header"],
@@ -203,6 +203,7 @@ def main(job_title=None, company_name=None, output_dir=None,
 
     print("Tailoring done. Building Word document...")
     os.system("cd /Users/subhashyadav/Documents/cv-tailor && /usr/local/bin/node build_docx.js")
+    os.system("cd /Users/subhashyadav/Documents/cv-tailor && /usr/local/bin/node build_docx_ats.js")
 
     print(f"\nDone! CV saved to: {output_dir}")
     return job_title, company_name, output_dir

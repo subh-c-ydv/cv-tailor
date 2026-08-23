@@ -30,7 +30,7 @@ Named output folder with all documents
 
 1. Remote policy — no remote-only roles
 2. Work permit — must not explicitly exclude sponsorship
-3. Location — Capital Region of Denmark only
+3. Location — reachable by public transport within ~60 minutes from Ørestad, Copenhagen (covers Greater Copenhagen commuter towns, not just city centre)
 4. Education — rules out roles requiring a Masters degree as a must-have
 5. Contract type — no part-time or maternity cover
 6. Salary — rules out roles below 65,000 DKK/month
@@ -45,12 +45,37 @@ Named output folder with all documents
 For each role that clears both gates, the tool generates:
 
 - A tailored CV (.docx) — Professional Summary and Experience rewritten for the specific role, with keyword gaps injected as context
-- A cover letter (.docx) — warm, concise, Danish market appropriate
+- An ATS-friendly CV (.docx) — same content, tables converted to plain text for reliable parsing by Applicant Tracking Systems (SuccessFactors, Workday, etc.)
+- A cover letter (.docx) — warm, concise, Danish market appropriate, calibrated for humility over self-promotion
 - A keyword match report (.txt) — score, matching keywords, gaps, recommendation
 
 All outputs land in a named folder: `cv-outputs/Job Title @ Company/`
 
 In batch mode, timestamped batch summaries are saved to `cv-outputs/batch-summaries/`.
+
+---
+
+## Interfaces
+
+### Streamlit UI (primary)
+
+```bash
+open ~/scripts/CVTailor.app
+```
+
+Runs as a persistent background service — starts automatically on login, always available at `http://localhost:8501`. No terminal required for day-to-day use.
+
+Two tabs:
+- **Single JD** — paste one job description, run the full pipeline interactively, download results inline
+- **Batch Mode** — drag and drop multiple `.txt` JD files, process them all in sequence, download results as they complete
+
+### Terminal menu (companion)
+
+```bash
+python3 menu.py
+```
+
+Retained as a fallback interface — same underlying pipeline, 8 menu options.
 
 ---
 
@@ -64,8 +89,9 @@ cv-tailor/                       <- repo (code only)
 ├── keyword_match.py             <- Gate 2
 ├── tailor_cv.py                 <- CV tailoring engine
 ├── generate_cover_letter.py     <- Cover letter generator
-├── batch_processor.py           <- Batch mode orchestrator
-├── build_docx.js                <- Word document builder (Node.js)
+├── batch_processor.py           <- Batch mode orchestrator (terminal)
+├── build_docx.js                <- Word document builder — formatted version (Node.js)
+├── build_docx_ats.js            <- Word document builder — ATS-friendly plain text version (Node.js)
 ├── utils.py                     <- Shared utilities
 ├── config.py                    <- Path configuration
 ├── prompt_config.txt            <- CV tailoring prompt (editable)
@@ -77,7 +103,7 @@ cv-tailor/                       <- repo (code only)
 cv-inputs/                       <- outside repo (private)
 ├── master_cv.docx               <- your master CV goes here
 ├── job_description.txt          <- single JD mode (terminal menu)
-└── jds/                         <- batch mode — drop JD files here
+└── jds/                         <- batch mode — drop JD files here (terminal menu)
     └── archive/                 <- processed JDs moved here automatically
 
 cv-outputs/                      <- outside repo
@@ -85,8 +111,15 @@ cv-outputs/                      <- outside repo
 │   └── batch_summary_YYYY_MM_DD_HH_MM.txt
 └── Job Title @ Company/         <- one folder per role that passed both gates
     ├── Your_Name_Job_Title_Company.docx
+    ├── Your_Name_Job_Title_Company_ATS.docx
     ├── Your_Name_Cover_Letter_Job_Title_Company.docx
     └── keyword_match_report.txt
+
+~/scripts/                       <- outside repo — background service management
+├── CVTailor.app                 <- launches the Streamlit UI as a background service
+├── start_cv_tailor.sh           <- underlying startup script
+├── restart_cv_tailor.sh         <- one-command restart after code changes
+└── restore_cv_tailor.sh         <- re-registers the login item if it drops after a macOS update
 ```
 
 ---
@@ -102,17 +135,12 @@ cv-outputs/                      <- outside repo
 ### Installation
 
 ```bash
-# Clone the repo
 git clone https://github.com/subh-c-ydv/cv-tailor.git
 cd cv-tailor
 
-# Install Python dependencies
 pip3 install anthropic python-docx streamlit
-
-# Install Node.js dependencies
 npm install docx
 
-# Set your API key
 echo 'export ANTHROPIC_API_KEY="your-key-here"' >> ~/.zshrc
 source ~/.zshrc
 ```
@@ -120,31 +148,65 @@ source ~/.zshrc
 ### Folder setup
 
 ```bash
-# Create input and output folders outside the repo
 mkdir ../cv-inputs ../cv-outputs ../cv-inputs/jds
-
 # Add your master CV to cv-inputs/ named master_cv.docx
+```
+
+### Running as a persistent background service (macOS)
+
+```bash
+mkdir -p ~/scripts
+
+cat > ~/scripts/start_cv_tailor.sh << 'EOF'
+#!/bin/bash
+source ~/.zshrc
+cd /path/to/cv-tailor
+/path/to/streamlit run app.py --server.port 8501 --server.headless true
+EOF
+chmod +x ~/scripts/start_cv_tailor.sh
+
+osacompile -o ~/scripts/CVTailor.app /tmp/cvtailor.applescript
+osascript -e 'tell application "System Events" to make login item at end with properties {path:"~/scripts/CVTailor.app", hidden:true}'
+```
+
+If the background service ever drops after a macOS update, restore it with:
+
+```bash
+~/scripts/restore_cv_tailor.sh
+```
+
+After any code change, restart the running service with:
+
+```bash
+~/scripts/restart_cv_tailor.sh
 ```
 
 ---
 
 ## Usage
 
-### Streamlit UI (recommended)
+### Single JD mode (Streamlit)
 
-```bash
-streamlit run app.py
-```
+1. Open `http://localhost:8501`
+2. Paste the job description in the **Single JD** tab
+3. Choose a mode from the sidebar (Full Run is the most common)
+4. Click **▶ Run**
+5. Review stress test and keyword match results inline; proceed or stop at borderline points
+6. Download the tailored CV, ATS-friendly CV, and cover letter directly from the browser
 
-Opens in your browser. Paste a JD, choose your mode from the sidebar, and run. Download buttons appear inline when documents are ready.
+### Batch mode (Streamlit)
+
+1. Open the **Batch Mode** tab
+2. Drag and drop multiple `.txt` JD files, or click to browse and select several
+3. Click **▶ Run Batch**
+4. Results display one by one as each JD completes — borderline roles still generate documents and are clearly flagged
+5. A batch summary with pass/fail/borderline counts is saved automatically
 
 ### Terminal menu (companion)
 
 ```bash
 python3 menu.py
 ```
-
-### Menu options
 
 ```
 1. Stress Test only
@@ -157,32 +219,16 @@ python3 menu.py
 8. Exit
 ```
 
-The menu shows a preview of the JD currently loaded in `job_description.txt` so you always know what is queued for single mode before running.
-
-### Single JD mode (options 1-6)
-
-1. Paste your job description into `cv-inputs/job_description.txt`
-2. Run `python3 menu.py`
-3. Choose option 3 for the full pipeline
-
-### Batch mode (option 7)
-
-1. Drop multiple JD `.txt` files into `cv-inputs/jds/`
-2. Run `python3 menu.py`
-3. Choose option 7
-4. Review the batch summary and optionally process borderline roles interactively
-5. Processed JD files are automatically archived to `cv-inputs/jds/archive/`
-
 ---
 
 ## Configuration
 
-All prompts and structure files are plain text and can be edited without touching any code:
+All prompts and structure files are plain text and can be edited without touching any code. Changes take effect on the next run — no restart needed.
 
 | File | Controls |
 |---|---|
-| `prompt_config.txt` | How Claude tailors the CV |
-| `cover_letter_prompt.txt` | Tone and structure of the cover letter |
+| `prompt_config.txt` | How Claude tailors the CV, including attribution integrity rules |
+| `cover_letter_prompt.txt` | Tone, humility calibration, and structure of the cover letter |
 | `stress_test_prompt.txt` | Stress test parameters and scoring logic |
 | `keyword_match_prompt.txt` | How Claude scores keyword alignment |
 | `cv_structure.txt` | CV section headings and types (narrative or table) |
@@ -203,9 +249,9 @@ Three types are supported:
 
 - `header` — your name and contact info block (always first)
 - `narrative` — sections Claude will tailor (summary, experience)
-- `table` — sections preserved exactly as-is (skills, education, certifications, etc.)
+- `table` — sections preserved exactly as-is in the formatted CV, and converted to plain text in the ATS-friendly CV
 
-Example for a standard CV:
+Example:
 
 ```
 NAME | header
@@ -217,38 +263,37 @@ SKILLS | table
 LANGUAGES | table
 ```
 
-Headings must match your CV document exactly, including capitalisation and punctuation.
-Lines starting with # are treated as comments and ignored.
+Headings must match your CV document exactly, including capitalisation and punctuation. Lines starting with # are treated as comments and ignored.
 
 ---
 
-## Anti-hallucination guardrails
+## Anti-hallucination and attribution guardrails
 
 The CV tailoring and cover letter prompts explicitly instruct Claude:
 
 - Only surface experience that genuinely exists in the master CV
 - Do not fabricate tools, qualifications, or achievements
 - Where gaps are structural, leave them as gaps — a lower keyword score is preferable to an inaccurate CV
+- Every achievement or metric referenced must be attributed to the exact employer it occurred under — never cross-attributed to a different company, even a similar or adjacent one
+- Cover letters favour understatement over self-promotion, and acknowledge prior employment at the same company (where applicable) with humility rather than as a leveraged credential
+
+These are prompt-level controls. Spot-check output periodically, particularly company-to-achievement pairings in cover letters, especially in the first several runs after any prompt change.
 
 ---
 
 ## Naming your output files
 
-By default, output files include the candidate name in the filename. To change this, update the `filename_base` variable in `tailor_cv.py` and `generate_cover_letter.py`:
-
-```python
-filename_base = f"Your_Name_{job_title}_{company_name}".replace(" ", "_")
-```
+Output filenames include the candidate name, job title, and company. Both spaces and forward slashes in company names (e.g. "Ambu A/S") are sanitised automatically to avoid invalid file paths. To change the naming convention, update `filename_base` in `tailor_cv.py` and `app.py`.
 
 ---
 
 ## Roadmap (v2)
 
-- Batch mode tab in Streamlit UI
-- Settings panel to view and edit prompt config files in the browser
+- Automated cross-check step verifying company-to-achievement attribution before download
 - JD fetch from URL — paste a link, tool fetches the JD automatically
 - LinkedIn workaround via browser extension
-- Hosting on Streamlit Cloud
+- Settings panel to view and edit prompt config files in the browser
+- Hosting on Streamlit Cloud (requires rebuilding file handling — no local filesystem in the cloud, and `build_docx.js`/`build_docx_ats.js` currently depend on Node.js, which Streamlit Cloud does not provide)
 
 ---
 
@@ -264,17 +309,29 @@ filename_base = f"Your_Name_{job_title}_{company_name}".replace(" ", "_")
 
 ## Changelog
 
+### v1.3
+- ATS-friendly CV variant added — table sections rendered as plain text for reliable parsing by SuccessFactors, Workday, and similar systems; generated alongside the formatted CV on every successful run
+- Stress test location parameter changed from a strict Capital Region boundary to a commute-based radius (~60 minutes by train/metro from Ørestad), correctly including commuter towns like Ballerup
+- Cover letter humility calibration — reduced self-promotional language, added acknowledgement pattern for prior employment at the same company
+- Attribution integrity guardrails added to both CV tailoring and cover letter prompts — achievements must stay attributed to the correct employer, preventing cross-company misattribution
+- Fixed filename generation bug where company names containing "/" (e.g. "Ambu A/S") broke file paths during save
+- Background service made more resilient — added `restore_cv_tailor.sh` for recovering the login item after macOS updates, and `restart_cv_tailor.sh` as a one-command restart after code changes
+- Fixed missing ATS build call and download button in the Single JD Streamlit flow (was only wired into batch mode initially)
+
 ### v1.2
-- Streamlit UI added as primary interface
+- Streamlit UI added as primary interface — stage-based flow using session state
+- Batch Mode tab added to Streamlit UI — drag-and-drop multiple JD uploads, borderline roles proceed automatically and are flagged rather than blocking on interactive prompts
+- Streamlit UI configured as a persistent background service on macOS — starts on login, runs at `http://localhost:8501`
 - Ghost job indicator added as stress test parameter 11
 - Terminal menu retained as companion interface
+- Fixed Node.js path resolution issue affecting document generation when running as a background service
 
 ### v1.1
 - CV structure now configurable via `cv_structure.txt` — no hardcoded section headings
 - Master CV filename genericised to `master_cv.docx` — ready for public sharing
 - Processed JD files automatically archived to `cv-inputs/jds/archive/` after batch run
 - Batch summaries saved to `cv-outputs/batch-summaries/` subfolder
-- JD preview shown in menu — always know what is loaded before running
+- JD preview shown in terminal menu — always know what is loaded before running
 - npm PATH warning resolved
 
 ### v1.0
@@ -283,8 +340,8 @@ filename_base = f"Your_Name_{job_title}_{company_name}".replace(" ", "_")
 - Two-gate pipeline — Stress Test then Keyword Match before building documents
 - CV tailoring engine with anti-hallucination guardrails
 - Cover letter generator — warm, concise, Danish market appropriate
-- Batch mode with interactive borderline processing
+- Batch mode with interactive borderline processing (terminal)
 - Timestamped batch summary saved to cv-outputs/
 - Gap injection — missing keywords flow silently into CV and cover letter prompts
 - JD context leak fix for batch mode
-- Full menu — 8 options
+- Full terminal menu — 8 options

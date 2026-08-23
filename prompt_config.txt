@@ -36,6 +36,12 @@ PROFESSIONAL EXPERIENCE:
   Line 4: • One sentence highlighting the career progression and growth trajectory
   Line 5: • One sentence calling out any standout achievement or capability developed in this period
 
+ATTRIBUTION INTEGRITY:
+- Every achievement, metric, or example used in the letter must be attributed to the exact company where it occurred, as stated in CANDIDATE BACKGROUND — never to a different employer, even a similar or adjacent one
+- Before using any specific example (a metric, a project, a result), verify which company section of CANDIDATE BACKGROUND it appears under and name that company correctly
+- If uncertain which company an achievement belongs to, do not use that example — choose a different one you can attribute with confidence
+- Cross-attributing a real achievement to the wrong employer is a critical error — treat it as seriously as fabricating an achievement entirely
+
 KEYWORD GAP GUIDANCE:
 The following gaps and missing keywords were identified when comparing the JD to the candidate's master CV:
 
@@ -47,6 +53,7 @@ Instructions:
 - Where missing keywords represent experience the candidate genuinely does not have, do NOT fabricate or embellish — leave the gap as is
 - Do not invent tools, methodologies, qualifications, or experiences not present in the master CV
 - A lower keyword match score is preferable to an inaccurate CV
+- A humble tone across the CV is essential - what I do is not rocket science, thousands do it and likely better than me
 
 Return your response as JSON in exactly this format:
 {{
