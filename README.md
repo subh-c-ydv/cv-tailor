@@ -44,9 +44,9 @@ Named output folder with all documents
 
 For each role that clears both gates, the tool generates:
 
-- A tailored CV (.docx) — Professional Summary and Experience rewritten for the specific role, with keyword gaps injected as context
+- A tailored CV (.docx) — Professional Summary and Experience rewritten for the specific role, achievements selected from the full pool documented per role based on genuine relevance to the JD
 - An ATS-friendly CV (.docx) — same content, tables converted to plain text for reliable parsing by Applicant Tracking Systems (SuccessFactors, Workday, etc.)
-- A cover letter (.docx) — warm, concise, Danish market appropriate, calibrated for humility over self-promotion
+- A cover letter (.docx) — warm, concise, Danish market appropriate, calibrated for humility over self-promotion, with variety guardrails to avoid templated-sounding openings/transitions/closings
 - A keyword match report (.txt) — score, matching keywords, gaps, recommendation
 
 All outputs land in a named folder: `cv-outputs/Job Title @ Company/`
@@ -227,11 +227,19 @@ All prompts and structure files are plain text and can be edited without touchin
 
 | File | Controls |
 |---|---|
-| `prompt_config.txt` | How Claude tailors the CV, including attribution integrity rules |
-| `cover_letter_prompt.txt` | Tone, humility calibration, and structure of the cover letter |
+| `prompt_config.txt` | How Claude tailors the CV — achievement selection, summary tone, attribution integrity rules |
+| `cover_letter_prompt.txt` | Tone, humility calibration, variety guardrails, and structure of the cover letter |
 | `stress_test_prompt.txt` | Stress test parameters and scoring logic |
 | `keyword_match_prompt.txt` | How Claude scores keyword alignment |
 | `cv_structure.txt` | CV section headings and types (narrative or table) |
+
+---
+
+## How achievement selection works
+
+The master CV typically holds more documented achievements per role than appear in any single tailored CV. Rather than passing a pre-trimmed, fixed set of bullets to Claude, the full pool of achievements for each role is passed in, and Claude is instructed to select the 2-3 most relevant to the specific job description being tailored for — not simply the first ones listed, and not the same default set every time.
+
+This means the same role can surface different achievements depending on what a given JD emphasises (e.g. technical delivery vs. stakeholder governance), while every achievement used must still be reproduced accurately and attributed to the correct employer — selection changes, facts do not.
 
 ---
 
@@ -275,9 +283,24 @@ The CV tailoring and cover letter prompts explicitly instruct Claude:
 - Do not fabricate tools, qualifications, or achievements
 - Where gaps are structural, leave them as gaps — a lower keyword score is preferable to an inaccurate CV
 - Every achievement or metric referenced must be attributed to the exact employer it occurred under — never cross-attributed to a different company, even a similar or adjacent one
+- Selection of which achievements to surface may vary by JD, but the substance, numbers, and attribution of each selected achievement must remain unchanged from the master CV
 - Cover letters favour understatement over self-promotion, and acknowledge prior employment at the same company (where applicable) with humility rather than as a leveraged credential
+- Cover letters avoid repeating the same opening sentence structure, the same "concrete example" transition phrase, or the same closing line across different letters — each letter should read as written for that specific role, not generated from a fixed template
 
 These are prompt-level controls. Spot-check output periodically, particularly company-to-achievement pairings in cover letters, especially in the first several runs after any prompt change.
+
+---
+
+## Document rendering — experience section parsing
+
+Both `build_docx.js` and `build_docx_ats.js` classify each line of the tailored Professional Experience output by counting pipe-separated (`|`) parts, rather than by matching content patterns:
+
+- **3+ parts** (`Title | Company | Date`) → a full job header on one line — bold title, then a subtitle line with company and date, with a spacer inserted before it (except the very first role)
+- **2 parts** (`Company | Date`) → a subtitle-only line, paired with a title-only heading on the line before it (used for the "Earlier Career" block)
+- **No pipe, but date-like** (e.g. `Earlier Career (2002 – 2014)`) → a title-only heading, starts a new block
+- **Starts with `•` or `-`** → a bullet point
+
+This replaced an earlier content-pattern classifier that broke once job header lines consistently contained both a pipe and a date within the same line — every role was being misread as a subtitle-only line, silently dropping bold titles and inter-role spacing. If experience section formatting ever looks wrong again, check `cv_data.json`'s `professional_experience` array first to confirm the data shape, then verify it against this pipe-count logic.
 
 ---
 
@@ -293,6 +316,7 @@ Output filenames include the candidate name, job title, and company. Both spaces
 - JD fetch from URL — paste a link, tool fetches the JD automatically
 - LinkedIn workaround via browser extension
 - Settings panel to view and edit prompt config files in the browser
+- Private remote access via Tailscale — reach the background service from other devices without public hosting
 - Hosting on Streamlit Cloud (requires rebuilding file handling — no local filesystem in the cloud, and `build_docx.js`/`build_docx_ats.js` currently depend on Node.js, which Streamlit Cloud does not provide)
 
 ---
@@ -308,6 +332,11 @@ Output filenames include the candidate name, job title, and company. Both spaces
 ---
 
 ## Changelog
+
+### v1.4
+- Achievement selection changed from a fixed/mechanical trim to genuine JD-driven selection — the full pool of documented achievements per role is now passed to Claude, which selects the 2-3 most relevant per JD rather than defaulting to the same set every time
+- Cover letter variety guardrails added — explicit instructions against repeating the same opening structure, "concrete example" transition phrase, or closing line across different letters
+- Fixed a significant document rendering bug: job header lines (which legitimately contain both `|` and a date) were being misclassified as subtitle-only lines, silently dropping bold job titles and spacing between roles across the entire Professional Experience section. Line classification now uses pipe-part count instead of content pattern matching, in both `build_docx.js` and `build_docx_ats.js`
 
 ### v1.3
 - ATS-friendly CV variant added — table sections rendered as plain text for reliable parsing by SuccessFactors, Workday, and similar systems; generated alongside the formatted CV on every successful run
