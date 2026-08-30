@@ -20,14 +20,13 @@ PROFESSIONAL SUMMARY:
 - Focus on the numbers and percentages i.e. the KPIs
 
 PROFESSIONAL EXPERIENCE:
-- Include ALL roles from 2015 onwards in full — one role per block
-- For each role from 2015 onwards, include a maximum of 3 bullet points — pick the ones most relevant to this JD
-- Each bullet point must be concise — one sentence, no more than 25 words
-- Return each role as exactly this structure:
-  Line 1: Job Title (no date)
-  Line 2: Company Name · Location | Start Month Year – End Month Year (or Present)
-  Line 3 onwards: • Bullet point text (never put company name as a bullet)
-- Preserve all job titles, company names and dates exactly as they appear
+- The CURRENT PROFESSIONAL EXPERIENCE below contains the full set of achievements documented for each role — more than will be used in the final CV
+- For each role, select the 2-3 achievements that are MOST RELEVANT to this specific JOB DESCRIPTION — not simply the first ones listed, not a fixed default set
+- Base selection on genuine relevance: does this achievement speak to a skill, outcome, or domain the JD is asking for? If two achievements are equally strong, prefer the one that uses language or concepts closer to the JD's own terminology
+- Do not default to the same achievements across different JDs for the same role — the selection should visibly shift depending on what the JD emphasises
+- Only include roles from 2015 onwards, condensing everything before that into a single "Earlier Career" block as already instructed elsewhere in this prompt
+- Each selected achievement must be reproduced accurately — you may tighten wording for concision (max ~25 words) but must not alter the substance, numbers, or attribution of the original achievement
+- Preserve all job titles, company names, and dates exactly as given
 - Do not add any roles, companies or dates that are not in the original
 - For all experience BEFORE 2015, consolidate into a single block using exactly the same structure as other roles. IMPORTANT: do not prefix Line 1 with a bullet point:
   Line 1: Earlier Career (2002 – 2014)

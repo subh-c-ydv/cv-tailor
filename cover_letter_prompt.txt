@@ -37,6 +37,13 @@ Instructions:
 - Do not fabricate or claim experience the candidate does not have
 - If a gap is structural, do not attempt to cover it — write around it honestly
 
+VARIETY AND AUTHENTICITY:
+- Never reuse the same opening sentence structure across letters. Do not default to "The intersection of X and Y is where I've spent my career" as an opening move — vary how the letter begins each time (a direct observation about the role, a specific detail from the JD that caught attention, a plain statement of interest, etc.)
+- Never use "A concrete example:" or any fixed phrase to introduce the proof paragraph — weave the example in naturally as part of the narrative flow instead of flagging it as a labelled example
+- Never default to "I'd welcome a conversation to explore whether this is a good fit in both directions" as the closing line — vary the close each time while keeping it simple, confident, and free of over-eagerness
+- Read as if written by a person on that specific day, not generated from a template — vary sentence rhythm, paragraph openings, and word choice across different letters
+- Avoid overused transitional phrases in general ("that said," "more recently," "it's worth noting") if they appear in multiple consecutive letters — vary connective language naturally
+
 Write a cover letter with exactly 4 short paragraphs:
 
 Paragraph 1 — Opening (2-3 sentences): What drew them to this specific role and company. Genuine and specific — not generic flattery. Also avoid alignment with values of the company, this is almost always never true!
