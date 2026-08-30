@@ -95,32 +95,24 @@ function twoColTable(rows) {
     });
 }
 
-function isJobHeader(line) {
+// --- Experience line parsing ---
+// A job block in the data comes in one of two shapes:
+//   1. A single combined line: "Title | Company · Location | Date"        (3 pipe-parts)
+//   2. Two lines: a title-only line (e.g. "Earlier Career (2002 - 2014)")
+//      followed by a "Company | Date" line                                (2 pipe-parts)
+// Bullets always start with "•" or "-".
+// We classify by pipe-part COUNT rather than by content pattern, since
+// job header lines legitimately contain both "|" and a date, which made
+// the old content-based classifier misfire on every normal role.
+
+function isDateLike(line) {
     return /\b(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d{4}/.test(line) ||
-           /\d{4}\s*[–\-]\s*(Present|\d{4})/.test(line);
-}
-
-function isCompanyLine(line) {
-    return line.includes(' | ') && isJobHeader(line);
-}
-
-function isJobTitle(line) {
-    if (line.startsWith('Earlier Career') || line.startsWith('Earlier Experience')) return true;
-    return !line.startsWith('•') &&
-           !line.startsWith('-') &&
-           !isCompanyLine(line);
+           /\d{4}\s*[\u2013\-]\s*(Present|\d{4})/.test(line);
 }
 
 function isPlaceholder(text) {
-    const t = text.replace(/^[•\-]\s*/, '').trim();
+    const t = text.replace(/^[\u2022\-]\s*/, '').trim();
     return t === '--' || t === '' || t === '-';
-}
-
-function parseJobHeader(line) {
-    const parts = line.split('|').map(p => p.trim());
-    if (parts.length === 3) return { title: parts[0], company: parts[1], date: parts[2] };
-    if (parts.length === 2) return { title: parts[0], company: '', date: parts[1] };
-    return null;
 }
 
 function renderExperienceSection(lines) {
@@ -132,38 +124,77 @@ function renderExperienceSection(lines) {
         if (!trimmed) return;
         if (isPlaceholder(trimmed)) return;
 
-        if (trimmed.startsWith('•') || trimmed.startsWith('-')) {
-            const bulletText = trimmed.replace(/^[•\-]\s*/, '').trim();
+        // Bullet point
+        if (trimmed.startsWith('\u2022') || trimmed.startsWith('-')) {
+            const bulletText = trimmed.replace(/^[\u2022\-]\s*/, '').trim();
             if (bulletText && !isPlaceholder(bulletText)) {
                 children.push(bulletPara(bulletText));
             }
-        } else if (isCompanyLine(trimmed)) {
-            const pipeIndex = trimmed.lastIndexOf(' | ');
-            const company = trimmed.substring(0, pipeIndex).trim();
-            const date = trimmed.substring(pipeIndex + 3).trim();
-            children.push(new Paragraph({
-                spacing: { before: 0, after: 20 },
-                children: [
-                    new TextRun({ text: company, size: 17, color: "666666", font: FONT }),
-                    new TextRun({ text: "   " + date, size: 17, color: "444444", font: FONT })
-                ]
-            }));
-        } else if (isJobTitle(trimmed)) {
-            if (!isFirstJob) children.push(spacer());
-            isFirstJob = false;
-            children.push(new Paragraph({
-                spacing: { before: 0, after: 10 },
-                children: [new TextRun({
-                    text: trimmed,
-                    bold: true,
-                    size: 19,
-                    color: DARK,
-                    font: FONT
-                })]
-            }));
-        } else {
-            children.push(bulletPara(trimmed));
+            return;
         }
+
+        if (trimmed.includes('|')) {
+            const parts = trimmed.split('|').map(p => p.trim());
+
+            if (parts.length >= 3) {
+                // Full job header on one line: Title | Company | Date
+                if (!isFirstJob) children.push(spacer());
+                isFirstJob = false;
+
+                const title = parts[0];
+                const company = parts.slice(1, -1).join(' | ');
+                const date = parts[parts.length - 1];
+
+                children.push(new Paragraph({
+                    spacing: { before: 0, after: 10 },
+                    children: [new TextRun({
+                        text: title,
+                        bold: true,
+                        size: 19,
+                        color: DARK,
+                        font: FONT
+                    })]
+                }));
+                children.push(new Paragraph({
+                    spacing: { before: 0, after: 20 },
+                    children: [
+                        new TextRun({ text: company, size: 17, color: "666666", font: FONT }),
+                        new TextRun({ text: "   " + date, size: 17, color: "444444", font: FONT })
+                    ]
+                }));
+                return;
+            }
+
+            if (parts.length === 2) {
+                // Company | Date only — subtitle belonging to a title rendered
+                // on the previous (no-pipe) line, e.g. the Earlier Career block
+                const company = parts[0];
+                const date = parts[1];
+                children.push(new Paragraph({
+                    spacing: { before: 0, after: 20 },
+                    children: [
+                        new TextRun({ text: company, size: 17, color: "666666", font: FONT }),
+                        new TextRun({ text: "   " + date, size: 17, color: "444444", font: FONT })
+                    ]
+                }));
+                return;
+            }
+        }
+
+        // No pipe at all — a title-only heading line (e.g. "Earlier Career (2002 - 2014)")
+        // Always starts a new job block.
+        if (!isFirstJob) children.push(spacer());
+        isFirstJob = false;
+        children.push(new Paragraph({
+            spacing: { before: 0, after: 10 },
+            children: [new TextRun({
+                text: trimmed,
+                bold: true,
+                size: 19,
+                color: DARK,
+                font: FONT
+            })]
+        }));
     });
 
     return children;
@@ -202,14 +233,6 @@ data.header.slice(2).forEach(line => {
 children.push(spacer());
 
 // --- DYNAMIC SECTIONS --- render in order defined in cv_structure.txt
-const allSections = [
-    ...structure.narrative_sections,
-    ...structure.table_sections
-];
-
-// Re-order based on original cv_structure.txt order
-// We stored narrative and table sections separately but need original order
-// Use section_map keys to rebuild order
 const sectionOrder = Object.keys(structure.section_map).filter(
     k => structure.section_map[k] !== 'header'
 );
@@ -222,12 +245,10 @@ sectionOrder.forEach(heading => {
     if (isNarrative) {
         children.push(sectionHeading(heading));
 
-        // Check if this is the experience section
         if (heading.toLowerCase().includes('experience')) {
             const expLines = data.professional_experience || [];
             renderExperienceSection(expLines).forEach(c => children.push(c));
         } else {
-            // Summary or other narrative
             const text = data.professional_summary || '';
             children.push(para(text, { size: 17, spaceAfter: 80 }));
         }

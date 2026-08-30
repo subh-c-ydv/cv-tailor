@@ -57,9 +57,7 @@ function renderTableAsText(rows, heading) {
 
     // Core Competencies — just the names as a clean list
     if (heading.toLowerCase().includes("competenc")) {
-        // Extract first column (competency names) only
         const names = rows.map(row => row[0] || '').filter(n => n.trim());
-        // Render as two per line separated by pipe for scannability
         for (let i = 0; i < names.length; i += 2) {
             const line = names[i + 1]
                 ? `${names[i]}   |   ${names[i + 1]}`
@@ -69,7 +67,7 @@ function renderTableAsText(rows, heading) {
         return children;
     }
 
-    // All other table sections — label bold, description on same or next line
+    // All other table sections — label bold, description on next line
     rows.forEach(row => {
         if (row[0]) {
             children.push(para(row[0], { bold: true, size: 17, spaceAfter: 20 }));
@@ -82,32 +80,13 @@ function renderTableAsText(rows, heading) {
     return children;
 }
 
-function isJobHeader(line) {
-    return /\b(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d{4}/.test(line) ||
-           /\d{4}\s*[–\-]\s*(Present|\d{4})/.test(line);
-}
-
-function isCompanyLine(line) {
-    return line.includes(' | ') && isJobHeader(line);
-}
-
-function isJobTitle(line) {
-    if (line.startsWith('Earlier Career') || line.startsWith('Earlier Experience')) return true;
-    return !line.startsWith('•') &&
-           !line.startsWith('-') &&
-           !isCompanyLine(line);
-}
+// --- Experience line parsing (same logic as build_docx.js) ---
+// Classify by pipe-part COUNT, not by content pattern, since job header
+// lines legitimately contain both "|" and a date.
 
 function isPlaceholder(text) {
-    const t = text.replace(/^[•\-]\s*/, '').trim();
+    const t = text.replace(/^[\u2022\-]\s*/, '').trim();
     return t === '--' || t === '' || t === '-';
-}
-
-function parseJobHeader(line) {
-    const parts = line.split('|').map(p => p.trim());
-    if (parts.length === 3) return { title: parts[0], company: parts[1], date: parts[2] };
-    if (parts.length === 2) return { title: parts[0], company: '', date: parts[1] };
-    return null;
 }
 
 function renderExperienceSection(lines) {
@@ -119,38 +98,77 @@ function renderExperienceSection(lines) {
         if (!trimmed) return;
         if (isPlaceholder(trimmed)) return;
 
-        if (trimmed.startsWith('•') || trimmed.startsWith('-')) {
-            const bulletText = trimmed.replace(/^[•\-]\s*/, '').trim();
+        // Bullet point
+        if (trimmed.startsWith('\u2022') || trimmed.startsWith('-')) {
+            const bulletText = trimmed.replace(/^[\u2022\-]\s*/, '').trim();
             if (bulletText && !isPlaceholder(bulletText)) {
                 children.push(bulletPara(bulletText));
             }
-        } else if (isCompanyLine(trimmed)) {
-            const pipeIndex = trimmed.lastIndexOf(' | ');
-            const company = trimmed.substring(0, pipeIndex).trim();
-            const date = trimmed.substring(pipeIndex + 3).trim();
-            children.push(new Paragraph({
-                spacing: { before: 0, after: 20 },
-                children: [
-                    new TextRun({ text: company, size: 17, color: "666666", font: FONT }),
-                    new TextRun({ text: "   " + date, size: 17, color: "444444", font: FONT })
-                ]
-            }));
-        } else if (isJobTitle(trimmed)) {
-            if (!isFirstJob) children.push(spacer());
-            isFirstJob = false;
-            children.push(new Paragraph({
-                spacing: { before: 0, after: 10 },
-                children: [new TextRun({
-                    text: trimmed,
-                    bold: true,
-                    size: 19,
-                    color: DARK,
-                    font: FONT
-                })]
-            }));
-        } else {
-            children.push(bulletPara(trimmed));
+            return;
         }
+
+        if (trimmed.includes('|')) {
+            const parts = trimmed.split('|').map(p => p.trim());
+
+            if (parts.length >= 3) {
+                // Full job header on one line: Title | Company | Date
+                if (!isFirstJob) children.push(spacer());
+                isFirstJob = false;
+
+                const title = parts[0];
+                const company = parts.slice(1, -1).join(' | ');
+                const date = parts[parts.length - 1];
+
+                children.push(new Paragraph({
+                    spacing: { before: 0, after: 10 },
+                    children: [new TextRun({
+                        text: title,
+                        bold: true,
+                        size: 19,
+                        color: DARK,
+                        font: FONT
+                    })]
+                }));
+                children.push(new Paragraph({
+                    spacing: { before: 0, after: 20 },
+                    children: [
+                        new TextRun({ text: company, size: 17, color: "666666", font: FONT }),
+                        new TextRun({ text: "   " + date, size: 17, color: "444444", font: FONT })
+                    ]
+                }));
+                return;
+            }
+
+            if (parts.length === 2) {
+                // Company | Date only — subtitle belonging to a title rendered
+                // on the previous (no-pipe) line, e.g. the Earlier Career block
+                const company = parts[0];
+                const date = parts[1];
+                children.push(new Paragraph({
+                    spacing: { before: 0, after: 20 },
+                    children: [
+                        new TextRun({ text: company, size: 17, color: "666666", font: FONT }),
+                        new TextRun({ text: "   " + date, size: 17, color: "444444", font: FONT })
+                    ]
+                }));
+                return;
+            }
+        }
+
+        // No pipe at all — a title-only heading line (e.g. "Earlier Career (2002 - 2014)")
+        // Always starts a new job block.
+        if (!isFirstJob) children.push(spacer());
+        isFirstJob = false;
+        children.push(new Paragraph({
+            spacing: { before: 0, after: 10 },
+            children: [new TextRun({
+                text: trimmed,
+                bold: true,
+                size: 19,
+                color: DARK,
+                font: FONT
+            })]
+        }));
     });
 
     return children;
@@ -212,7 +230,6 @@ sectionOrder.forEach(heading => {
 
     } else if (isTable && data.tables[key]) {
         children.push(sectionHeading(heading));
-        // Render as plain text instead of table
         renderTableAsText(data.tables[key], heading).forEach(c => children.push(c));
         children.push(spacer());
     }
