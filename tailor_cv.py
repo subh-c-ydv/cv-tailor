@@ -2,6 +2,7 @@ import anthropic
 import os
 import json
 from docx import Document
+from docx.oxml.ns import qn
 from config import CV_PATH, OUTPUTS_DIR
 from utils import read_jd, extract_job_details
 
@@ -39,6 +40,32 @@ def load_cv_structure():
     return structure
 
 
+def get_paragraph_text(element):
+    """Extract paragraph text, converting tab characters to a visible
+    separator. Word tab elements don't render as spacing when written
+    as a raw \\t inside a docx TextRun, so we convert to ' | ' at
+    extraction time instead (matches the style already used in the
+    tagline, e.g. 'Software Delivery Leadership | Programme...')."""
+    parts = []
+    for node in element.iter():
+        if node.tag == qn('w:t'):
+            parts.append(node.text or '')
+        elif node.tag == qn('w:tab'):
+            parts.append(' | ')
+    return ''.join(parts)
+
+
+def get_cell_text(cell):
+    """Extract table cell text, converting tab characters to a visible separator."""
+    parts = []
+    for node in cell.iter():
+        if node.tag == qn('w:t'):
+            parts.append(node.text or '')
+        elif node.tag == qn('w:tab'):
+            parts.append(' | ')
+    return ''.join(parts)
+
+
 def extract_cv_sections(docx_path, structure):
     """Extract text from CV using structure defined in cv_structure.txt"""
     doc = Document(docx_path)
@@ -59,9 +86,7 @@ def extract_cv_sections(docx_path, structure):
 
     for element in doc.element.body:
         if element.tag.endswith('}p'):
-            from docx.oxml.ns import qn
-            runs = element.findall('.//' + qn('w:t'))
-            text = ''.join(r.text or '' for r in runs).strip()
+            text = get_paragraph_text(element).strip()
 
             if not text:
                 continue
@@ -79,13 +104,11 @@ def extract_cv_sections(docx_path, structure):
                 sections[current_key].append(text)
 
         elif element.tag.endswith('}tbl'):
-            from docx.oxml.ns import qn
             table_texts = []
             for row in element.findall('.//' + qn('w:tr')):
                 row_cells = []
                 for cell in row.findall('.//' + qn('w:tc')):
-                    cell_runs = cell.findall('.//' + qn('w:t'))
-                    cell_text = ''.join(r.text or '' for r in cell_runs).strip()
+                    cell_text = get_cell_text(cell).strip()
                     if cell_text:
                         row_cells.append(cell_text)
                 if row_cells:
