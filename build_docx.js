@@ -102,13 +102,7 @@ function twoColTable(rows) {
 //      followed by a "Company | Date" line                                (2 pipe-parts)
 // Bullets always start with "•" or "-".
 // We classify by pipe-part COUNT rather than by content pattern, since
-// job header lines legitimately contain both "|" and a date, which made
-// the old content-based classifier misfire on every normal role.
-
-function isDateLike(line) {
-    return /\b(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d{4}/.test(line) ||
-           /\d{4}\s*[\u2013\-]\s*(Present|\d{4})/.test(line);
-}
+// job header lines legitimately contain both "|" and a date.
 
 function isPlaceholder(text) {
     const t = text.replace(/^[\u2022\-]\s*/, '').trim();
@@ -214,11 +208,14 @@ children.push(new Paragraph({
     })]
 }));
 
-if (data.header[1]) {
+// Tagline — prefer the tailored top-level "tagline" field if present,
+// otherwise fall back to the original header line 2 (pre-tailoring compatibility)
+const taglineText = data.tagline || data.header[1];
+if (taglineText) {
     children.push(new Paragraph({
         spacing: { before: 0, after: 40 },
         children: [new TextRun({
-            text: data.header[1],
+            text: taglineText,
             size: 19,
             color: "444444",
             font: FONT

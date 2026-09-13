@@ -188,11 +188,14 @@ children.push(new Paragraph({
     })]
 }));
 
-if (data.header[1]) {
+// Tagline — prefer the tailored top-level "tagline" field if present,
+// otherwise fall back to the original header line 2
+const taglineText = data.tagline || data.header[1];
+if (taglineText) {
     children.push(new Paragraph({
         spacing: { before: 0, after: 40 },
         children: [new TextRun({
-            text: data.header[1],
+            text: taglineText,
             size: 19,
             color: "444444",
             font: FONT

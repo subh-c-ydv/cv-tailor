@@ -1,9 +1,15 @@
 You are an expert CV writer specialising in concise, targeted CVs for senior professionals.
 
-I need you to tailor two sections of a CV for a specific job. The output must be tight, selective, and fit within 2 pages maximum when combined with the other CV sections.
+I need you to tailor several sections of a CV for a specific job. The output must be tight, selective, and fit within 2 pages maximum when combined with the other CV sections.
 
 JOB DESCRIPTION:
 {jd_text}
+
+CURRENT TAGLINE (header line, pipe-separated components):
+{tagline_text}
+
+CURRENT CORE COMPETENCIES (full pool — label and description per row):
+{core_competencies_text}
 
 CURRENT PROFESSIONAL SUMMARY:
 {summary_text}
@@ -12,6 +18,25 @@ CURRENT PROFESSIONAL EXPERIENCE:
 {experience_text}
 
 Instructions:
+
+SENIORITY & ROLE-TYPE MATCHING (applies to TAGLINE, CORE COMPETENCIES, and PROFESSIONAL EXPERIENCE selection below):
+- Judge the seniority and scope of the role from the JOB DESCRIPTION — team-level / individual-contributor / hands-on delivery roles (e.g. Scrum Master, Agile Coach, Delivery Lead) are a different audience from portfolio- or programme-level roles (e.g. Portfolio Manager, Programme Manager, Head of PMO, Director)
+- For team-level roles: down-rank or omit portfolio-governance, business-case-authoring, and executive-reporting content — even when it is a genuinely strong achievement — in favour of team-level delivery, coaching, and hands-on achievements
+- For portfolio/programme-level roles: the reverse applies — lead with governance, business-case, and cross-functional leadership content
+- This judgement should be applied consistently across the tagline, the competencies selected, and the experience bullets chosen — a team-level JD should not receive a portfolio-heavy tagline alongside team-level experience bullets, or vice versa
+
+TAGLINE:
+- The CURRENT TAGLINE above lists the candidate's existing pipe-separated positioning phrases (e.g. "Software Delivery Leadership", "Programme & Portfolio Governance")
+- Select and reorder 2-4 of these EXISTING phrases that best match the seniority and focus of this specific JD — do not invent new phrases, do not reword the existing ones
+- Lead with whichever phrase is most relevant to this JD
+- Join the selected phrases with " │ " exactly as in the original format
+
+CORE COMPETENCIES:
+- The CURRENT CORE COMPETENCIES above lists the full pool of competency rows — more than will be used in the final CV
+- Select the 6-8 rows most relevant to this specific JD, applying the SENIORITY & ROLE-TYPE MATCHING principle above
+- Reorder the selected rows so the most JD-relevant appears first
+- Each selected row's label and description must be reproduced EXACTLY as given — do not reword, shorten, or embellish. You are selecting and reordering existing rows, not rewriting them
+- Do not invent a competency row that is not in the original pool
 
 PROFESSIONAL SUMMARY:
 - Rewrite as a single punchy paragraph of 4-5 lines maximum
@@ -22,7 +47,8 @@ PROFESSIONAL SUMMARY:
 PROFESSIONAL EXPERIENCE:
 - The CURRENT PROFESSIONAL EXPERIENCE below contains the full set of achievements documented for each role — more than will be used in the final CV
 - For each role, select the 2-3 achievements that are MOST RELEVANT to this specific JOB DESCRIPTION — not simply the first ones listed, not a fixed default set
-- Base selection on genuine relevance: does this achievement speak to a skill, outcome, or domain the JD is asking for? If two achievements are equally strong, prefer the one whose underlying concept is closer to the JD's focus — but restate it in plain language rather than copying JD phrasing
+- Base selection on genuine relevance: does this achievement speak to a skill, outcome, or domain the JD is asking for? Apply the SENIORITY & ROLE-TYPE MATCHING principle above when two achievements are otherwise comparable
+- If two achievements are equally strong, prefer the one whose underlying concept is closer to the JD's focus — but restate it in plain language rather than copying JD phrasing
 - Do not default to the same achievements across different JDs for the same role — the selection should visibly shift depending on what the JD emphasises
 - Only include roles from 2015 onwards, condensing everything before that into a single "Earlier Career" block as described below
 - COLLINSON EXCEPTION: When the JD is centred on agile practice, delivery enablement, scrum mastery, or ways-of-working (i.e. the first-hand agile-team story is directly relevant), you MAY surface the Collinson Group role (2012-2014, self-organised Scrum team, Priority Pass) as its own short entry instead of folding it into Earlier Career, because it evidences genuine early agile practice. Otherwise apply the standard 2015 cutoff.
@@ -55,6 +81,7 @@ ATTRIBUTION INTEGRITY:
 - Before using any specific example (a metric, a project, a result), verify which company section it appears under and name that company correctly
 - If uncertain which company an achievement belongs to, do not use that example — choose a different one you can attribute with confidence
 - Cross-attributing a real achievement to the wrong employer is a critical error — treat it as seriously as fabricating an achievement entirely
+- Metric names/labels must be reproduced exactly as stated — do not introduce a rephrased or renamed variant of a metric (e.g. do not call a stated "defect slippage" reduction a "defect escape rate" reduction)
 
 KEYWORD GAP GUIDANCE:
 The following gaps and missing keywords were identified when comparing the JD to the candidate's master CV:
@@ -71,7 +98,9 @@ Instructions:
 
 Return your response as JSON in exactly this format:
 {{
+    "tagline": "Selected Phrase 1  │  Selected Phrase 2  │  Selected Phrase 3",
     "professional_summary": "the tailored summary as a single paragraph",
+    "core_competencies": [["Competency Label 1", "Description 1"], ["Competency Label 2", "Description 2"]],
     "professional_experience": ["line 1", "line 2", "line 3"]
 }}
 

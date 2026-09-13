@@ -1,5 +1,6 @@
 import anthropic
 import os
+import re
 import json
 from docx import Document
 from docx.oxml.ns import qn
@@ -40,6 +41,18 @@ def load_cv_structure():
     return structure
 
 
+def normalize_text(text):
+    """Collapse repeated whitespace and strip stray leading/trailing
+    pipe separators that can appear when a source paragraph starts or
+    ends with a tab character (converted to ' | ' during extraction)."""
+    if not text:
+        return text
+    text = re.sub(r'\s{2,}', ' ', text)
+    text = re.sub(r'^(\s*\|\s*)+', '', text)
+    text = re.sub(r'(\s*\|\s*)+$', '', text)
+    return text.strip()
+
+
 def get_paragraph_text(element):
     """Extract paragraph text, converting tab characters to a visible
     separator. Word tab elements don't render as spacing when written
@@ -52,7 +65,7 @@ def get_paragraph_text(element):
             parts.append(node.text or '')
         elif node.tag == qn('w:tab'):
             parts.append(' | ')
-    return ''.join(parts)
+    return normalize_text(''.join(parts))
 
 
 def get_cell_text(cell):
@@ -63,7 +76,7 @@ def get_cell_text(cell):
             parts.append(node.text or '')
         elif node.tag == qn('w:tab'):
             parts.append(' | ')
-    return ''.join(parts)
+    return normalize_text(''.join(parts))
 
 
 def extract_cv_sections(docx_path, structure):
@@ -86,7 +99,7 @@ def extract_cv_sections(docx_path, structure):
 
     for element in doc.element.body:
         if element.tag.endswith('}p'):
-            text = get_paragraph_text(element).strip()
+            text = get_paragraph_text(element)
 
             if not text:
                 continue
@@ -108,7 +121,7 @@ def extract_cv_sections(docx_path, structure):
             for row in element.findall('.//' + qn('w:tr')):
                 row_cells = []
                 for cell in row.findall('.//' + qn('w:tc')):
-                    cell_text = get_cell_text(cell).strip()
+                    cell_text = get_cell_text(cell)
                     if cell_text:
                         row_cells.append(cell_text)
                 if row_cells:
@@ -120,16 +133,20 @@ def extract_cv_sections(docx_path, structure):
     return sections
 
 
+def format_competencies_for_prompt(rows):
+    """Render the full core competencies pool as readable numbered text
+    for the prompt, so Claude can select/reorder from it."""
+    lines = []
+    for i, row in enumerate(rows, 1):
+        label = row[0] if len(row) > 0 else ''
+        desc = row[1] if len(row) > 1 else ''
+        lines.append(f"{i}. {label} — {desc}")
+    return '\n'.join(lines)
+
+
 def tailor_with_claude(sections, jd_text, client, structure,
                        missing_keywords=None, gaps=None):
-    """Send narrative sections to Claude for tailoring"""
-
-    # Build narrative text dynamically from structure
-    narrative_texts = {}
-    for heading in structure["narrative_sections"]:
-        key = structure["section_map"][heading]
-        if key in sections:
-            narrative_texts[heading] = '\n'.join(sections[key])
+    """Send narrative and tailorable sections to Claude for tailoring"""
 
     # Build the summary and experience text for the prompt
     summary_key = None
@@ -144,11 +161,21 @@ def tailor_with_claude(sections, jd_text, client, structure,
     summary_text = ' '.join(sections.get(summary_key, [])) if summary_key else ''
     experience_text = '\n'.join(sections.get(experience_key, [])) if experience_key else ''
 
+    # Tagline — second line of the header block (index 0 = name)
+    header_lines = sections.get("header", [])
+    tagline_text = header_lines[1] if len(header_lines) > 1 else ''
+
+    # Core competencies — full pool, formatted for the prompt
+    core_competencies_rows = sections.get("tables", {}).get("core_competencies", [])
+    core_competencies_text = format_competencies_for_prompt(core_competencies_rows)
+
     with open("prompt_config.txt", "r") as f:
         prompt_template = f.read()
 
     prompt = prompt_template.format(
         jd_text=jd_text,
+        tagline_text=tagline_text,
+        core_competencies_text=core_competencies_text,
         summary_text=summary_text,
         experience_text=experience_text,
         missing_keywords=', '.join(missing_keywords) if missing_keywords else 'None identified',
@@ -208,11 +235,26 @@ def main(job_title=None, company_name=None, output_dir=None,
 
     filename_base = f"Subhash_Yadav_{job_title}_{company_name}".replace(" ", "_").replace("/", "-")
 
+    # Build the header array with the tailored tagline substituted in place
+    # of the original (header[0]=name stays, header[1]=tagline gets replaced,
+    # header[2:]=contact lines stay unchanged)
+    header_lines = list(sections["header"])
+    tailored_tagline = normalize_text(tailored.get("tagline", ""))
+    if tailored_tagline and len(header_lines) > 1:
+        header_lines[1] = tailored_tagline
+
+    # Substitute the tailored core competencies rows, falling back to the
+    # original full table if Claude didn't return anything usable
+    tables = dict(sections["tables"])
+    tailored_competencies = tailored.get("core_competencies")
+    if tailored_competencies:
+        tables["core_competencies"] = tailored_competencies
+
     output_data = {
-        "header": sections["header"],
+        "header": header_lines,
         "professional_summary": tailored["professional_summary"],
         "professional_experience": tailored["professional_experience"],
-        "tables": sections["tables"],
+        "tables": tables,
         "filename": os.path.join(output_dir, filename_base),
         "structure": {
             "narrative_sections": structure["narrative_sections"],

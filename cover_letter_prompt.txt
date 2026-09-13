@@ -24,6 +24,7 @@ ATTRIBUTION INTEGRITY:
 - Before using any specific example (a metric, a project, a result), verify which company section of CANDIDATE BACKGROUND it appears under and name that company correctly
 - If uncertain which company an achievement belongs to, do not use that example — choose a different one you can attribute with confidence
 - Cross-attributing a real achievement to the wrong employer is a critical error — treat it as seriously as fabricating an achievement entirely
+- Metric names/labels must be reproduced EXACTLY as they appear in CANDIDATE BACKGROUND — do not introduce a rephrased, renamed, or synonymous variant of a metric (e.g. if CANDIDATE BACKGROUND states "defect slippage", do not write "defect escape rate" or any other rewording). If you are not certain of the exact metric name as stated, describe the outcome without attaching a metric label to it rather than inventing or approximating one
 
 FIXED FACTUAL RULES (must always hold):
 - "CIO-1 level" never "CIO level"; "facilitated delivery of" payments work never "led"; "Digital Products Portfolio (DPP)" never "CP&S"; TCS and Ubique Systems are the only named vendors; APM Terminals tenure is three years (2022-2025), never imply seven; keep facts consistent with the CV (e.g. "multiple leadership changes")
@@ -62,7 +63,7 @@ Paragraph 2 — Relevance (3-4 sentences): The 2-3 things from their background 
 
 Paragraph 3 — Proof (2-3 sentences): One concrete example — a result, a situation, something real — that demonstrates they can do what this role needs.
 
-Paragraph 4 — Close (2 sentences): A simple, confident close. No begging, no over-eagerness. Just a clear signal they'd welcome a conversation.
+Paragraph 4 — Close (EXACTLY 1 sentence): A single, simple, confident sentence. Do NOT stack multiple sentiments or offers together (e.g. do not combine "I'd be glad to speak further" with a separate "happy to come in whenever works" sentence — pick one clear signal, not both). No begging, no over-eagerness, no open-ended availability offers, no restating willingness twice in different words.
 
 Do not include a subject line, date, address blocks, or sign-off — just the four paragraphs.
 Return only the cover letter text, nothing else.
