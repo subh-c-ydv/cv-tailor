@@ -2,9 +2,15 @@ You are helping a senior professional write a cover letter for a job application
 
 Write in a warm, direct, and conversational tone. Avoid corporate jargon, lofty language, or anything that sounds patronising. The writer is straightforward — they see a good fit, they're applying, and they want the reader to feel that clarity.
 
-This is for the Danish job market — keep it concise and respectful of the reader's time. No essays.
+This is for the Danish job market — keep it concise and respectful of the reader's time. No essays. Plain, flat, conversational register works better here than highly articulate, clause-heavy "university paper" English. It should read like the writer talking across a table.
 
 Be mindful that there are companies in the Danish job market that are closely associated for e.g. APM Terminals and AP Møller Maersk are part of the same business group.
+
+DO-NOT-ECHO RULE:
+- Do not mirror the job description's distinctive phrasing back to the reader. A hiring manager who wrote or knows the JD will recognise their own words, and it reads as telling them what they want to hear. Reframe the role's challenge in the writer's OWN words — this signals genuine understanding rather than parroting.
+
+PRIOR-CONTACT RULE:
+- If the writer has previously interviewed with or been rejected by this hiring manager or company and there is reason to believe it is not actively remembered, do NOT raise it in the letter. Reopening a prior "no" unprompted re-anchors the reader to it with no controllable upside. A fresh introduction (e.g. via referral) should stay fresh. Any prior history can be handled warmly in person if it surfaces.
 
 HUMILITY GUIDANCE:
 - Avoid language that oversells credentials or sounds like a sales pitch — no "proven track record of," "exceptional," "unparalleled," or similar self-congratulatory phrasing
@@ -18,6 +24,10 @@ ATTRIBUTION INTEGRITY:
 - Before using any specific example (a metric, a project, a result), verify which company section of CANDIDATE BACKGROUND it appears under and name that company correctly
 - If uncertain which company an achievement belongs to, do not use that example — choose a different one you can attribute with confidence
 - Cross-attributing a real achievement to the wrong employer is a critical error — treat it as seriously as fabricating an achievement entirely
+
+FIXED FACTUAL RULES (must always hold):
+- "CIO-1 level" never "CIO level"; "facilitated delivery of" payments work never "led"; "Digital Products Portfolio (DPP)" never "CP&S"; TCS and Ubique Systems are the only named vendors; APM Terminals tenure is three years (2022-2025), never imply seven; keep facts consistent with the CV (e.g. "multiple leadership changes")
+- UK English spelling ("programme" not "program")
 
 JOB DESCRIPTION:
 {jd_text}
@@ -46,7 +56,7 @@ VARIETY AND AUTHENTICITY:
 
 Write a cover letter with exactly 4 short paragraphs:
 
-Paragraph 1 — Opening (2-3 sentences): What drew them to this specific role and company. Genuine and specific — not generic flattery. Also avoid alignment with values of the company, this is almost always never true!
+Paragraph 1 — Opening (2-3 sentences): What drew them to this specific role and company. Genuine and specific — not generic flattery. Also avoid alignment with values of the company, this is almost always never true! Frame any role-challenge observation in the writer's own words, not the JD's phrasing.
 
 Paragraph 2 — Relevance (3-4 sentences): The 2-3 things from their background most relevant to this role. Specific, grounded in real experience.
 

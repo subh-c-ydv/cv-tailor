@@ -11,7 +11,7 @@ CV Tailor automates and quality-gates the job application process. Instead of ta
 ```
 Job Description
       ↓
-Gate 1: Stress Test (11 parameters)
+Gate 1: Stress Test (12 parameters)
       ↓ FAIL → Stop
       ↓ BORDERLINE → Ask user
       ↓ PASS
@@ -30,15 +30,16 @@ Named output folder with all documents
 
 1. Remote policy — no remote-only roles
 2. Work permit — must not explicitly exclude sponsorship
-3. Location — reachable by public transport within ~60 minutes from Ørestad, Copenhagen (covers Greater Copenhagen commuter towns, not just city centre)
+3. Location — reachable by public transport (train/metro/bus) within ~60 minutes from Ørestad, Copenhagen (covers Greater Copenhagen commuter towns; explicitly excludes Odense, Aarhus, Aalborg, Vejle, Esbjerg, Horsens and similar)
 4. Education — rules out roles requiring a Masters degree as a must-have
 5. Contract type — no part-time or maternity cover
-6. Salary — rules out roles below 65,000 DKK/month
+6. Salary — rules out roles with a stated base salary band at or below 65,000 DKK/month (excluding pension and bonus)
 7. Seniority — flags junior or overly senior roles
 8. JD language — rules out Danish-only job descriptions
 9. Language requirement — rules out roles requiring native Danish or other non-English languages
 10. Cultural fit — rules out public sector or Danish-market-only organisations
 11. Ghost job indicator — flags roles with suspiciously little employer or location detail for on-site or hybrid positions
+12. Role-type fit — flags pure-strategy, learning & development, or standalone process-excellence individual-contributor roles that fall outside the candidate's actual delivery-focused target
 
 ### Outputs
 
@@ -227,8 +228,8 @@ All prompts and structure files are plain text and can be edited without touchin
 
 | File | Controls |
 |---|---|
-| `prompt_config.txt` | How Claude tailors the CV — achievement selection, summary tone, attribution integrity rules |
-| `cover_letter_prompt.txt` | Tone, humility calibration, variety guardrails, and structure of the cover letter |
+| `prompt_config.txt` | How Claude tailors the CV — achievement selection, summary tone, fixed factual rules, attribution integrity |
+| `cover_letter_prompt.txt` | Tone, humility calibration, variety guardrails, echo-prevention, and structure of the cover letter |
 | `stress_test_prompt.txt` | Stress test parameters and scoring logic |
 | `keyword_match_prompt.txt` | How Claude scores keyword alignment |
 | `cv_structure.txt` | CV section headings and types (narrative or table) |
@@ -240,6 +241,20 @@ All prompts and structure files are plain text and can be edited without touchin
 The master CV typically holds more documented achievements per role than appear in any single tailored CV. Rather than passing a pre-trimmed, fixed set of bullets to Claude, the full pool of achievements for each role is passed in, and Claude is instructed to select the 2-3 most relevant to the specific job description being tailored for — not simply the first ones listed, and not the same default set every time.
 
 This means the same role can surface different achievements depending on what a given JD emphasises (e.g. technical delivery vs. stakeholder governance), while every achievement used must still be reproduced accurately and attributed to the correct employer — selection changes, facts do not.
+
+A narrow, named exception exists for the Collinson Group role (2012–2014): when a JD is genuinely centred on agile practice, delivery enablement, or ways-of-working, that role may surface as its own short entry outside the standard "pre-2015 → Earlier Career" consolidation, since it evidences first-hand early agile experience directly relevant to that specific type of JD.
+
+---
+
+## Fixed factual rules
+
+`prompt_config.txt` and `cover_letter_prompt.txt` both carry a FIXED FACTUAL RULES block — a small set of specific, non-negotiable facts that must hold regardless of how the surrounding text is tailored (e.g. exact tenure dates, precise seniority-level wording, named vendors only, specific metric phrasing, exclusions like a lapsed certification that should never be listed). This sits alongside the general attribution integrity guardrail and exists to lock down well-established, easily-drifted specifics that a general "be accurate" instruction doesn't reliably catch on its own. If you find Claude drifting on a specific fact repeatedly despite the general guardrails, adding it explicitly to this block is the most reliable fix.
+
+---
+
+## Echo-prevention
+
+Both the CV summary and the cover letter are instructed not to mirror the job description's own distinctive phrasing back to the reader. A hiring manager who wrote or knows the JD recognises their own words reflected back, which reads as telling them what they want to hear rather than demonstrating genuine understanding. The substance of what the JD is asking for should still come through — just restated in the candidate's own plain language rather than lifted from the posting.
 
 ---
 
@@ -273,6 +288,8 @@ LANGUAGES | table
 
 Headings must match your CV document exactly, including capitalisation and punctuation. Lines starting with # are treated as comments and ignored.
 
+Header/contact lines separated by tab characters in the source document (rather than explicit `|` or `·` separators) are automatically converted to a visible `|` separator during extraction — Word tab characters do not render as spacing when written into a `.docx` TextRun, so this conversion happens in `tailor_cv.py` at read time.
+
 ---
 
 ## Anti-hallucination and attribution guardrails
@@ -284,8 +301,11 @@ The CV tailoring and cover letter prompts explicitly instruct Claude:
 - Where gaps are structural, leave them as gaps — a lower keyword score is preferable to an inaccurate CV
 - Every achievement or metric referenced must be attributed to the exact employer it occurred under — never cross-attributed to a different company, even a similar or adjacent one
 - Selection of which achievements to surface may vary by JD, but the substance, numbers, and attribution of each selected achievement must remain unchanged from the master CV
-- Cover letters favour understatement over self-promotion, and acknowledge prior employment at the same company (where applicable) with humility rather than as a leveraged credential
+- A small set of specific facts (see Fixed factual rules above) must never drift regardless of how the surrounding text is tailored
+- Cover letters favour understatement over self-promotion, and acknowledge prior employment at the same company (where applicable) with humility rather than as a leveraged credential — kept to a brief passing mention where that prior employment is far in the past
 - Cover letters avoid repeating the same opening sentence structure, the same "concrete example" transition phrase, or the same closing line across different letters — each letter should read as written for that specific role, not generated from a fixed template
+- Cover letters do not mirror the JD's own distinctive phrasing back to the reader (see Echo-prevention above)
+- Cover letters do not unprompted resurface a prior interview or rejection with the same hiring manager if it is not actively remembered — a fresh introduction stays fresh
 
 These are prompt-level controls. Spot-check output periodically, particularly company-to-achievement pairings in cover letters, especially in the first several runs after any prompt change.
 
@@ -332,6 +352,19 @@ Output filenames include the candidate name, job title, and company. Both spaces
 ---
 
 ## Changelog
+
+### v1.5
+- Stress test expanded from 11 to 12 parameters — added Role-Type Fit, which flags pure-strategy, L&D, and standalone process-excellence individual-contributor roles outside the candidate's actual delivery-focused target
+- Location parameter widened — bus added as a valid commute mode alongside train/metro, more commuter towns explicitly listed as in-range, more distant cities explicitly listed as out-of-range
+- Salary parameter clarified as base salary only, excluding pension and bonus
+- Candidate profile expanded with permanent residency timeline, explicit language proficiency detail, and an explicit statement of target role types (delivery and delivery-adjacent only)
+- Echo-prevention rule added to both the CV tailoring and cover letter prompts — Claude no longer mirrors the JD's own distinctive phrasing back to the reader in either the summary or the letter, reducing the "parroting the posting" tell
+- Fixed Factual Rules block added to both prompts — a small set of specific, non-negotiable facts (exact tenure dates, precise seniority wording, named vendors only, specific metric phrasing, explicit exclusions) that must never drift regardless of how the surrounding text is tailored
+- Prior-contact rule added to the cover letter prompt — a previous interview or rejection with the same hiring manager is not unprompted resurfaced if it is not actively remembered
+- Cover letter now aware of closely-associated Danish employer groupings (e.g. APM Terminals and A.P. Møller–Mærsk) to avoid treating related companies as unrelated
+- Humility guidance refined — prior employment at the same company gets only a brief passing mention when that history is far in the past, rather than being developed further
+- Collinson Group exception added to achievement selection — this pre-2015 role may surface as its own entry (bypassing standard Earlier Career consolidation) when a JD is genuinely centred on agile practice or delivery enablement
+- Fixed header/contact line extraction — tab-separated content in the master CV (phone / email / LinkedIn) is now converted to a visible `|` separator during extraction, since raw tab characters do not render as spacing inside a generated `.docx`
 
 ### v1.4
 - Achievement selection changed from a fixed/mechanical trim to genuine JD-driven selection — the full pool of documented achievements per role is now passed to Claude, which selects the 2-3 most relevant per JD rather than defaulting to the same set every time
