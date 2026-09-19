@@ -353,6 +353,18 @@ Output filenames include the candidate name, job title, and company. Both spaces
 
 ## Changelog
 
+### v1.7
+- Node.js invocation made cross-platform — replaced hardcoded Mac-only `os.system("cd /Users/... && /usr/local/bin/node ...")` calls with a `run_node_build()` helper in `utils.py` that locates Node via `shutil.which("node")` and invokes it with `subprocess.run(cwd=...)`. No hardcoded paths or shell-specific syntax; works unchanged on macOS, Windows, and (eventually) the Mac Mini as long as Node is on PATH
+- Node build failures now surface properly — `run_node_build()` raises with the actual `stderr` on a non-zero exit instead of silently printing, so a failed CV/cover-letter render is never mistaken for a successful one
+- Fixed a Windows OneDrive `PermissionError` — `st.download_button` calls in `app.py` were failing intermittently when OneDrive still held a sync lock on a just-written `.docx`. Added a `safe_read_bytes()` helper that briefly retries the read before raising, applied across all 9 download-button call sites (single-JD flow and batch mode, both PASS and BORDERLINE paths)
+
+### v1.6
+- Tagline now tailored per JD — the second header line (e.g. "Software Delivery Leadership | Programme & Portfolio Governance | ...") is passed to Claude as a pool of existing pipe-separated phrases; Claude selects and reorders 2-4 of them per role instead of always showing the same fixed line, with no invented phrases allowed
+- Core Competencies table now tailored per JD — the full pool of competency rows (previously always shown in full) is passed to the prompt via `format_competencies_for_prompt()`, and Claude selects the 6-8 most relevant, reordered, and reproduced exactly rather than reworded
+- Metric-name exactness rule added to ATTRIBUTION INTEGRITY in both `prompt_config.txt` and `cover_letter_prompt.txt` — fixes a real fabrication caught in testing where a cover letter invented "defect escape rates" instead of the master CV's actual "defect slippage"
+- Cover letter closing paragraph tightened from "2 sentences" to "EXACTLY 1 sentence," with a named anti-pattern against stacking two eager-sounding sentences (e.g. "I'd be glad to speak further" + "happy to come in whenever works") into one overly keen close
+- Stress test residency-duration fix — `stress_test_prompt.txt`'s CANDIDATE PROFILE now explicitly states continuous Denmark residence since 2018 (8+ years), with an explicit instruction not to infer recent country-of-origin residence from the candidate's Bachelor's degree location. Fixes a false FAIL on a security-clearance residency requirement that was incorrectly triggered by degree-country inference
+
 ### v1.5
 - Stress test expanded from 11 to 12 parameters — added Role-Type Fit, which flags pure-strategy, L&D, and standalone process-excellence individual-contributor roles outside the candidate's actual delivery-focused target
 - Location parameter widened — bus added as a valid commute mode alongside train/metro, more commuter towns explicitly listed as in-range, more distant cities explicitly listed as out-of-range
@@ -407,27 +419,27 @@ Output filenames include the candidate name, job title, and company. Both spaces
 - Gap injection — missing keywords flow silently into CV and cover letter prompts
 - JD context leak fix for batch mode
 - Full terminal menu — 8 options
+
 ## Running on another machine (Mac mini, Windows laptop, etc.)
 
-The app itself is plain Python (Streamlit) + a couple of Node.js scripts for `.docx` generation — nothing is tied to this specific MacBook anymore. To run it on a new machine:
+The app itself is plain Python (Streamlit) + two Node.js scripts for `.docx` generation, invoked via `run_node_build()` in `utils.py` (see the v1.7 changelog entry above) — no hardcoded paths or shell-specific syntax, so the same repo runs on macOS, Windows, or Linux as long as Python and Node are installed. To run it on a new machine:
 
-1. **Clone the repo** from GitHub (subh-c-ydv/cv-tailor or wherever it's hosted).
+1. **Clone the repo** from GitHub (subh-c-ydv/cv-tailor).
 2. **Install Python deps:**
    ```bash
-   python3 -m venv .venv
-   source .venv/bin/activate      # Windows: .venv\Scripts\activate
-   pip install -r requirements.txt
+   pip3 install anthropic python-docx streamlit
    ```
-3. **Install Node.js** (any recent LTS) and make sure `node` is on your PATH — needed for `build_docx.js` / `build_docx_ats.js`.
+3. **Install Node.js** (any recent LTS) and make sure `node` is on your PATH — `run_node_build()` finds it via `shutil.which("node")`, so no manual path configuration is needed.
    ```bash
-   cd <repo folder>
-   npm install
+   cd cv-tailor
+   npm install docx
    ```
-4. **Set your API key:** copy `.env.example` to `.env` and paste in your `ANTHROPIC_API_KEY`. `.env` is git-ignored, so this step is per-machine.
-5. **Make sure `cv-inputs/` and `cv-outputs/` exist** one level above the repo folder (see `config.py`) — copy over `master_cv.docx` and `job_description.txt` from your current machine if needed.
+4. **Set your API key** as an environment variable named `ANTHROPIC_API_KEY` — there's no `.env` file in this codebase; `utils.py` reads it straight from `os.environ`.
+   - macOS/Linux: add `export ANTHROPIC_API_KEY="your-key-here"` to `~/.zshrc` (or `~/.bashrc`) and `source` it
+   - Windows: set it as a User Environment Variable via System Properties, or `$env:ANTHROPIC_API_KEY="your-key-here"` in your PowerShell profile
+5. **Create `cv-inputs/` and `cv-outputs/`** one level above the repo folder (see `config.py` for the exact paths it expects) — copy over `master_cv.docx` and `job_description.txt` from your current machine.
 6. **Run it:**
-   - macOS/Linux: `./run_cv_tailor.sh`
-   - Windows: `run_cv_tailor.bat` (double-click) or `./run_cv_tailor.ps1` in PowerShell
-   - Then open http://localhost:8501
-
-No macOS Keychain, AppleScript, or hardcoded paths are required anymore — those were removed so the same repo runs unchanged on Mac and Windows.
+   ```bash
+   streamlit run app.py
+   ```
+   Then open http://localhost:8501. On macOS this can also run as a persistent background service (see "Running as a persistent background service (macOS)" above) — there's currently no Windows equivalent, so on Windows you start it manually each session.
