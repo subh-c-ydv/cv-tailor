@@ -1,8 +1,7 @@
-from unittest import result
-
 import streamlit as st
 import os
 import json
+import time
 import anthropic
 from datetime import datetime
 from config import OUTPUTS_DIR, CV_PATH
@@ -23,6 +22,21 @@ st.set_page_config(
 # --- Helpers ---
 def get_client():
     return anthropic.Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
+
+def safe_read_bytes(path, retries=5, delay=0.4):
+    """Read a file's bytes, retrying briefly if OneDrive (or any sync
+    client) still has a lock on a just-written file. Raises the final
+    PermissionError if it never clears. This is what feeds every
+    st.download_button below instead of a raw open(path, 'rb')."""
+    last_error = None
+    for attempt in range(retries):
+        try:
+            with open(path, "rb") as f:
+                return f.read()
+        except PermissionError as e:
+            last_error = e
+            time.sleep(delay)
+    raise last_error
 
 def stress_test_color(result):
     if result == "PASS":
@@ -428,23 +442,21 @@ with tab1:
         st.success(f"✅ CV generated — {st.session_state.job_title} at {st.session_state.company_name}")
 
         if os.path.exists(st.session_state.cv_path):
-            with open(st.session_state.cv_path, "rb") as f:
-                st.download_button(
-                    label="⬇ Download Tailored CV",
-                    data=f,
-                    file_name=f"{st.session_state.filename_base}.docx",
-                    mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-                )
+            st.download_button(
+                label="⬇ Download Tailored CV",
+                data=safe_read_bytes(st.session_state.cv_path),
+                file_name=f"{st.session_state.filename_base}.docx",
+                mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+            )
 
         if st.session_state.get("cv_ats_path") and os.path.exists(st.session_state.cv_ats_path):
-            with open(st.session_state.cv_ats_path, "rb") as f:
-                st.download_button(
-                    label="⬇ Download ATS-friendly CV",
-                    data=f,
-                    file_name=f"{st.session_state.filename_base}_ATS.docx",
-                    mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-                    key="cv_ats_download_1"
-                )
+            st.download_button(
+                label="⬇ Download ATS-friendly CV",
+                data=safe_read_bytes(st.session_state.cv_ats_path),
+                file_name=f"{st.session_state.filename_base}_ATS.docx",
+                mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                key="cv_ats_download_1"
+            )
 
         if st.session_state.mode == "Full Run":
             st.session_state.stage = "cover_letter"
@@ -471,23 +483,21 @@ with tab1:
             st.success(f"✅ CV generated — {st.session_state.job_title} at {st.session_state.company_name}")
 
             if os.path.exists(st.session_state.cv_path):
-                with open(st.session_state.cv_path, "rb") as f:
-                    st.download_button(
-                        label="⬇ Download Tailored CV",
-                        data=f,
-                        file_name=f"{st.session_state.filename_base}.docx",
-                        mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-                        key="cv_download_final"
-                    )
+                st.download_button(
+                    label="⬇ Download Tailored CV",
+                    data=safe_read_bytes(st.session_state.cv_path),
+                    file_name=f"{st.session_state.filename_base}.docx",
+                    mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                    key="cv_download_final"
+                )
             if st.session_state.get("cv_ats_path") and os.path.exists(st.session_state.cv_ats_path):
-                with open(st.session_state.cv_ats_path, "rb") as f:
-                    st.download_button(
-                        label="⬇ Download ATS-friendly CV",
-                        data=f,
-                        file_name=f"{st.session_state.filename_base}_ATS.docx",
-                        mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-                        key="cv_ats_download_2"
-                    )
+                st.download_button(
+                    label="⬇ Download ATS-friendly CV",
+                    data=safe_read_bytes(st.session_state.cv_ats_path),
+                    file_name=f"{st.session_state.filename_base}_ATS.docx",
+                    mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                    key="cv_ats_download_2"
+                )
             st.markdown("---")
 
         if st.session_state.cl_path is None:
@@ -518,13 +528,12 @@ with tab1:
         st.markdown(st.session_state.cl_text)
 
         if os.path.exists(st.session_state.cl_path):
-            with open(st.session_state.cl_path, "rb") as f:
-                st.download_button(
-                    label="⬇ Download Cover Letter",
-                    data=f,
-                    file_name=st.session_state.cl_filename,
-                    mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-                )
+            st.download_button(
+                label="⬇ Download Cover Letter",
+                data=safe_read_bytes(st.session_state.cl_path),
+                file_name=st.session_state.cl_filename,
+                mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+            )
 
         st.markdown("---")
         st.success(f"✅ All files saved to: {st.session_state.output_dir}")
@@ -582,48 +591,44 @@ with tab2:
                     col1, col2 = st.columns(2)
                     with col1:
                         if result["cv_path"] and os.path.exists(result["cv_path"]):
-                            with open(result["cv_path"], "rb") as f:
-                                st.download_button(
-                                    label="⬇ Download CV",
-                                    data=f,
-                                    file_name=result["cv_filename"],
-                                    mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-                                    key=f"cv_{i}"
-                                )
+                            st.download_button(
+                                label="⬇ Download CV",
+                                data=safe_read_bytes(result["cv_path"]),
+                                file_name=result["cv_filename"],
+                                mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                                key=f"cv_{i}"
+                            )
                     with col2:
                         if result["cl_path"] and os.path.exists(result["cl_path"]):
-                            with open(result["cl_path"], "rb") as f:
-                                st.download_button(
-                                    label="⬇ Download Cover Letter",
-                                    data=f,
-                                    file_name=result["cl_filename"],
-                                    mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-                                    key=f"cl_{i}"
-                                )
+                            st.download_button(
+                                label="⬇ Download Cover Letter",
+                                data=safe_read_bytes(result["cl_path"]),
+                                file_name=result["cl_filename"],
+                                mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                                key=f"cl_{i}"
+                            )
 
                 else:
                     st.success(f"✅ PASS — {result['job_title']} at {result['company_name']} (keyword: {result['keyword_score']}/10)")
                     col1, col2 = st.columns(2)
                     with col1:
                         if result["cv_path"] and os.path.exists(result["cv_path"]):
-                            with open(result["cv_path"], "rb") as f:
-                                st.download_button(
-                                    label="⬇ Download CV",
-                                    data=f,
-                                    file_name=result["cv_filename"],
-                                    mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-                                    key=f"cv_{i}"
-                                )
+                            st.download_button(
+                                label="⬇ Download CV",
+                                data=safe_read_bytes(result["cv_path"]),
+                                file_name=result["cv_filename"],
+                                mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                                key=f"cv_{i}"
+                            )
                     with col2:
                         if result["cl_path"] and os.path.exists(result["cl_path"]):
-                            with open(result["cl_path"], "rb") as f:
-                                st.download_button(
-                                    label="⬇ Download Cover Letter",
-                                    data=f,
-                                    file_name=result["cl_filename"],
-                                    mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-                                    key=f"cl_{i}"
-                                )
+                            st.download_button(
+                                label="⬇ Download Cover Letter",
+                                data=safe_read_bytes(result["cl_path"]),
+                                file_name=result["cl_filename"],
+                                mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                                key=f"cl_{i}"
+                            )
 
             # --- Batch Summary ---
             st.markdown("---")
