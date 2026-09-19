@@ -39,3 +39,24 @@ JOB DESCRIPTION:
         if response_text.startswith("json"):
             response_text = response_text[4:]
     return json.loads(response_text.strip())
+
+def run_node_build(script_name):
+    """
+    Run a Node.js build script (e.g. build_docx.js) next to this file,
+    regardless of OS or where the process's working directory happens to be.
+    Uses 'node' from PATH instead of a hardcoded Mac install location.
+    """
+    import subprocess
+    import shutil
+
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    node_exe = shutil.which("node") or "node"
+    result = subprocess.run(
+        [node_exe, script_name],
+        cwd=base_dir,
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode != 0:
+        print(f"[run_node_build] {script_name} failed:\n{result.stderr}")
+    return result

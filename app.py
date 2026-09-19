@@ -11,6 +11,7 @@ from stress_test import run_stress_test
 from keyword_match import run_keyword_match, save_keyword_report
 from tailor_cv import extract_cv_sections, tailor_with_claude, load_cv_structure
 from generate_cover_letter import generate_cover_letter, build_cover_letter_docx
+from utils import run_node_build
 
 # --- Page config ---
 st.set_page_config(
@@ -158,8 +159,8 @@ def process_single_jd_ui(jd_text, client, cv_text):
     with open("cv_data.json", "w") as f:
         json.dump(output_data, f, indent=2)
 
-    os.system("cd /Users/subhashyadav/Documents/cv-tailor && /usr/local/bin/node build_docx.js")
-    os.system("cd /Users/subhashyadav/Documents/cv-tailor && /usr/local/bin/node build_docx_ats.js")
+    run_node_build("build_docx.js")
+    run_node_build("build_docx_ats.js")
 
     cv_path = os.path.join(output_dir, f"{filename_base}.docx")
     result["cv_path"] = cv_path
@@ -414,8 +415,8 @@ with tab1:
                 with open("cv_data.json", "w") as f:
                     json.dump(output_data, f, indent=2)
 
-                os.system("cd /Users/subhashyadav/Documents/cv-tailor && /usr/local/bin/node build_docx.js")
-                os.system("cd /Users/subhashyadav/Documents/cv-tailor && /usr/local/bin/node build_docx_ats.js")
+                run_node_build("build_docx.js")
+                run_node_build("build_docx_ats.js")
                 st.session_state.cv_path = os.path.join(
                     st.session_state.output_dir, f"{filename_base}.docx"
                 )

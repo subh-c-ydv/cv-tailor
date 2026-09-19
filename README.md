@@ -407,3 +407,27 @@ Output filenames include the candidate name, job title, and company. Both spaces
 - Gap injection — missing keywords flow silently into CV and cover letter prompts
 - JD context leak fix for batch mode
 - Full terminal menu — 8 options
+## Running on another machine (Mac mini, Windows laptop, etc.)
+
+The app itself is plain Python (Streamlit) + a couple of Node.js scripts for `.docx` generation — nothing is tied to this specific MacBook anymore. To run it on a new machine:
+
+1. **Clone the repo** from GitHub (subh-c-ydv/cv-tailor or wherever it's hosted).
+2. **Install Python deps:**
+   ```bash
+   python3 -m venv .venv
+   source .venv/bin/activate      # Windows: .venv\Scripts\activate
+   pip install -r requirements.txt
+   ```
+3. **Install Node.js** (any recent LTS) and make sure `node` is on your PATH — needed for `build_docx.js` / `build_docx_ats.js`.
+   ```bash
+   cd <repo folder>
+   npm install
+   ```
+4. **Set your API key:** copy `.env.example` to `.env` and paste in your `ANTHROPIC_API_KEY`. `.env` is git-ignored, so this step is per-machine.
+5. **Make sure `cv-inputs/` and `cv-outputs/` exist** one level above the repo folder (see `config.py`) — copy over `master_cv.docx` and `job_description.txt` from your current machine if needed.
+6. **Run it:**
+   - macOS/Linux: `./run_cv_tailor.sh`
+   - Windows: `run_cv_tailor.bat` (double-click) or `./run_cv_tailor.ps1` in PowerShell
+   - Then open http://localhost:8501
+
+No macOS Keychain, AppleScript, or hardcoded paths are required anymore — those were removed so the same repo runs unchanged on Mac and Windows.

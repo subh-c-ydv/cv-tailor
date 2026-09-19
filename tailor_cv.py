@@ -6,6 +6,7 @@ from docx import Document
 from docx.oxml.ns import qn
 from config import CV_PATH, OUTPUTS_DIR
 from utils import read_jd, extract_job_details
+from utils import run_node_build
 
 
 def load_cv_structure():
@@ -267,8 +268,8 @@ def main(job_title=None, company_name=None, output_dir=None,
         json.dump(output_data, f, indent=2)
 
     print("Tailoring done. Building Word document...")
-    os.system("cd /Users/subhashyadav/Documents/cv-tailor && /usr/local/bin/node build_docx.js")
-    os.system("cd /Users/subhashyadav/Documents/cv-tailor && /usr/local/bin/node build_docx_ats.js")
+    run_node_build("build_docx.js")
+    run_node_build("build_docx_ats.js")
 
     print(f"\nDone! CV saved to: {output_dir}")
     return job_title, company_name, output_dir
