@@ -48,22 +48,45 @@ Instructions:
 - Do not fabricate or claim experience the candidate does not have
 - If a gap is structural, do not attempt to cover it — write around it honestly
 
+WHAT THIS LETTER MUST ACCOMPLISH:
+Whatever the structure, by the end of the letter the reader should clearly understand three things:
+- What the writer is genuinely good at — shown through evidence from CANDIDATE BACKGROUND, not claimed through adjectives
+- How those strengths connect to what this particular role demands
+- How the writer could add value to this team and the wider organisation
+
+MAKING IT MEMORABLE WITHOUT BEING POMPOUS:
+- Memorable comes from specificity, not volume. One vivid, concrete detail (a number, a before/after, a real situation) beats three general claims
+- Have a point of view: one plain, considered opinion about how this kind of work goes right or wrong, stated simply and not as a lecture
+- Vary sentence length. A short sentence after a longer one does more than any adjective
+- Include at least one sentence that sounds like this specific person and could not appear in anyone else's letter
+- No superlatives or intensifiers about the writer ("passionate", "exceptional", "deeply", "extremely", "thrilled")
+
+FORWARD-LOOKING RULE (for any passage about value to the team or organisation):
+- Frame it as what the writer would look at, explore or contribute — a hypothesis, not a promise. For example: "I'd want to understand X before changing anything, but my instinct is Y"
+- Ground every "what I'd do" in experience that actually appears in CANDIDATE BACKGROUND
+- Never promise specific results ("I will reduce...", "I will deliver...")
+- Never claim insider knowledge of the company, or make assumptions about its internal situation beyond what the JD itself states
+
+LENGTH:
+- 200-280 words in total, unless the structure below states a different range
+
+CLOSING (applies to every structure):
+- The final paragraph is EXACTLY 1 sentence. A single, simple, confident sentence. Do NOT stack multiple sentiments or offers together (e.g. do not combine "I'd be glad to speak further" with a separate "happy to come in whenever works" sentence — pick one clear signal, not both). No begging, no over-eagerness, no open-ended availability offers, no restating willingness twice in different words
+
 VARIETY AND AUTHENTICITY:
-- Never reuse the same opening sentence structure across letters. Do not default to "The intersection of X and Y is where I've spent my career" as an opening move — vary how the letter begins each time (a direct observation about the role, a specific detail from the JD that caught attention, a plain statement of interest, etc.)
-- Never use "A concrete example:" or any fixed phrase to introduce the proof paragraph — weave the example in naturally as part of the narrative flow instead of flagging it as a labelled example
-- Never default to "I'd welcome a conversation to explore whether this is a good fit in both directions" as the closing line — vary the close each time while keeping it simple, confident, and free of over-eagerness
-- Read as if written by a person on that specific day, not generated from a template — vary sentence rhythm, paragraph openings, and word choice across different letters
-- Avoid overused transitional phrases in general ("that said," "more recently," "it's worth noting") if they appear in multiple consecutive letters — vary connective language naturally
+- Never reuse the same opening sentence structure across letters. Do not default to "The intersection of X and Y is where I've spent my career" as an opening move
+- Never use "A concrete example:" or any fixed phrase to introduce evidence — weave the example into the narrative flow instead of flagging it as a labelled example
+- Never default to "I'd welcome a conversation to explore whether this is a good fit in both directions" as the closing line
+- Read as if written by a person on that specific day, not generated from a template — vary sentence rhythm, paragraph openings, and word choice
+- Avoid overused transitional phrases ("that said," "more recently," "it's worth noting")
 
-Write a cover letter with exactly 4 short paragraphs:
+STRUCTURE FOR THIS LETTER:
+The structure below was chosen for this specific role. Follow it exactly and do not blend it with any other structure.
 
-Paragraph 1 — Opening (2-3 sentences): What drew them to this specific role and company. Genuine and specific — not generic flattery. Also avoid alignment with values of the company, this is almost always never true! Frame any role-challenge observation in the writer's own words, not the JD's phrasing.
+{shape_instructions}
 
-Paragraph 2 — Relevance (3-4 sentences): The 2-3 things from their background most relevant to this role. Specific, grounded in real experience.
-
-Paragraph 3 — Proof (2-3 sentences): One concrete example — a result, a situation, something real — that demonstrates they can do what this role needs.
-
-Paragraph 4 — Close (EXACTLY 1 sentence): A single, simple, confident sentence. Do NOT stack multiple sentiments or offers together (e.g. do not combine "I'd be glad to speak further" with a separate "happy to come in whenever works" sentence — pick one clear signal, not both). No begging, no over-eagerness, no open-ended availability offers, no restating willingness twice in different words.
-
-Do not include a subject line, date, address blocks, or sign-off — just the four paragraphs.
-Return only the cover letter text, nothing else.
+FORMAT:
+- Paragraphs separated by exactly one blank line
+- Prose only: no bullet points, no headings, no numbered lists
+- Do not include a subject line, date, address blocks, or sign-off
+- Return only the cover letter text, nothing else

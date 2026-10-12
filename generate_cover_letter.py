@@ -1,13 +1,49 @@
 import anthropic
 import os
+import sys
 from docx import Document
 from config import OUTPUTS_DIR
-from utils import read_jd, read_cv_text, extract_job_details
+from utils import read_jd, read_cv_text, extract_job_details, CV_TAILOR_DIR
+
+PROMPT_PATH = os.path.join(CV_TAILOR_DIR, "cover_letter_prompt.txt")
+SHAPES_DIR = os.path.join(CV_TAILOR_DIR, "cover_letter_shapes")
+
+# Used whenever no shape is specified. Automatic, role-weighted selection
+# replaces this in a later step.
+DEFAULT_SHAPE = "problem_first"
+
+
+def list_shapes():
+    """Return the names of all available cover letter shapes, i.e. every
+    .txt file in the cover_letter_shapes folder (without the extension).
+    Dropping a new .txt file in that folder makes a new shape available."""
+    if not os.path.isdir(SHAPES_DIR):
+        return []
+    return sorted(
+        os.path.splitext(f)[0]
+        for f in os.listdir(SHAPES_DIR)
+        if f.endswith(".txt")
+    )
+
+
+def load_shape(shape):
+    """Read the instructions for one shape from cover_letter_shapes/."""
+    available = list_shapes()
+    if shape not in available:
+        raise ValueError(
+            f"Unknown cover letter shape '{shape}'. "
+            f"Available shapes: {', '.join(available) if available else 'none found'}"
+        )
+    with open(os.path.join(SHAPES_DIR, f"{shape}.txt"), "r", encoding="utf-8") as f:
+        return f.read().strip()
 
 
 def generate_cover_letter(jd_text, cv_text, job_title, company_name, client,
-                          missing_keywords=None, gaps=None):
-    with open("cover_letter_prompt.txt", "r") as f:
+                          missing_keywords=None, gaps=None, shape=None):
+    if shape is None:
+        shape = DEFAULT_SHAPE
+
+    with open(PROMPT_PATH, "r", encoding="utf-8") as f:
         prompt_template = f.read()
 
     prompt = prompt_template.format(
@@ -16,7 +52,8 @@ def generate_cover_letter(jd_text, cv_text, job_title, company_name, client,
         job_title=job_title,
         company_name=company_name,
         missing_keywords=', '.join(missing_keywords) if missing_keywords else 'None identified',
-        gaps=gaps if gaps else 'None identified'
+        gaps=gaps if gaps else 'None identified',
+        shape_instructions=load_shape(shape)
     )
 
     message = client.messages.create(
@@ -97,7 +134,7 @@ def build_cover_letter_docx(cover_letter_text, job_title, company_name, filename
 
 
 def main(job_title=None, company_name=None, output_dir=None,
-         missing_keywords=None, gaps=None, jd_text=None):
+         missing_keywords=None, gaps=None, jd_text=None, shape=None):
 
     # Use passed jd_text if provided, otherwise read from file
     if jd_text is None:
@@ -121,16 +158,18 @@ def main(job_title=None, company_name=None, output_dir=None,
         output_dir = os.path.join(OUTPUTS_DIR, folder_name)
     os.makedirs(output_dir, exist_ok=True)
 
-    print("Generating cover letter...")
+    shape_used = shape or DEFAULT_SHAPE
+    print(f"Generating cover letter (shape: {shape_used})...")
     cover_letter_text = generate_cover_letter(
         jd_text, cv_text, job_title, company_name, client,
         missing_keywords=missing_keywords,
-        gaps=gaps
+        gaps=gaps,
+        shape=shape_used
     )
 
     filename = os.path.join(
         output_dir,
-        f"Subhash_Yadav_Cover_Letter_{job_title}_{company_name}.docx".replace(" ", "_")
+        f"Subhash_Yadav_Cover_Letter_{job_title}_{company_name}.docx".replace(" ", "_").replace("/", "-")
     )
     build_cover_letter_docx(cover_letter_text, job_title, company_name, filename)
 
@@ -139,4 +178,10 @@ def main(job_title=None, company_name=None, output_dir=None,
 
 
 if __name__ == "__main__":
-    main()
+    # Optional: pass a shape name to force it, e.g.
+    #   python generate_cover_letter.py story_first
+    shape_arg = sys.argv[1] if len(sys.argv) > 1 else None
+    if shape_arg in ("-h", "--help", "--list"):
+        print("Available shapes:", ", ".join(list_shapes()))
+    else:
+        main(shape=shape_arg)
