@@ -1,0 +1,38 @@
+# Cover letter shape weights
+#
+# Each row says which shapes are eligible for a kind of role, and how likely
+# each one is. Format (four fields separated by |):
+#
+#   seniority | problem | agency_posted | shape:weight, shape:weight, ...
+#
+#   seniority  : senior, mid, junior, or * (anything)
+#   problem    : specific, generic, or * (anything)
+#                ("specific" = the JD describes a real situation or challenge,
+#                 "generic" = a standard list of responsibilities)
+#   agency     : yes, no, or * (anything)
+#   weights    : relative likelihood. They don't need to add up to 100.
+#
+# The FIRST row that matches wins, so keep specific rows above general ones.
+# The last row (* | * | *) is the catch-all and should stay at the bottom.
+# Shape names are the file names in cover_letter_shapes/ (without .txt).
+#
+# The same shape is never picked twice in a row, unless a row has only one shape.
+#
+# These numbers are starting points. Change them freely.
+
+# Recruiter-screened postings: short and easy to skim, whatever the seniority
+*      | *        | yes | direct_short:60, three_strengths:40
+
+# Senior roles
+senior | specific | no  | problem_first:50, story_first:40, question_led:10
+senior | generic  | no  | story_first:50, three_strengths:30, problem_first:20
+
+# Mid-level roles
+mid    | specific | no  | three_strengths:35, problem_first:25, story_first:20, direct_short:10, question_led:10
+mid    | generic  | no  | three_strengths:50, direct_short:30, story_first:20
+
+# Junior roles
+junior | *        | no  | three_strengths:50, direct_short:40, story_first:10
+
+# Catch-all
+*      | *        | *   | problem_first:25, story_first:25, three_strengths:25, direct_short:15, question_led:10

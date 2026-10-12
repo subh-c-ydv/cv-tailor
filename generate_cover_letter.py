@@ -4,26 +4,14 @@ import sys
 from docx import Document
 from config import OUTPUTS_DIR
 from utils import read_jd, read_cv_text, extract_job_details, CV_TAILOR_DIR
+from shape_selector import (
+    SHAPES_DIR,
+    list_shapes,
+    select_shape,
+    record_shape_used,
+)
 
 PROMPT_PATH = os.path.join(CV_TAILOR_DIR, "cover_letter_prompt.txt")
-SHAPES_DIR = os.path.join(CV_TAILOR_DIR, "cover_letter_shapes")
-
-# Used whenever no shape is specified. Automatic, role-weighted selection
-# replaces this in a later step.
-DEFAULT_SHAPE = "problem_first"
-
-
-def list_shapes():
-    """Return the names of all available cover letter shapes, i.e. every
-    .txt file in the cover_letter_shapes folder (without the extension).
-    Dropping a new .txt file in that folder makes a new shape available."""
-    if not os.path.isdir(SHAPES_DIR):
-        return []
-    return sorted(
-        os.path.splitext(f)[0]
-        for f in os.listdir(SHAPES_DIR)
-        if f.endswith(".txt")
-    )
 
 
 def load_shape(shape):
@@ -39,9 +27,19 @@ def load_shape(shape):
 
 
 def generate_cover_letter(jd_text, cv_text, job_title, company_name, client,
-                          missing_keywords=None, gaps=None, shape=None):
+                          missing_keywords=None, gaps=None, shape=None,
+                          job_details=None):
+    """Generate the cover letter text.
+
+    shape: force a specific shape by name. If None, a shape is chosen by
+    weighted random selection based on job_details (the dict returned by
+    extract_job_details). If job_details is also None, neutral defaults are
+    used, so callers that haven't been updated still get varied letters.
+
+    Callers that want to know which shape was chosen (for display) should call
+    shape_selector.select_shape() themselves and pass the result as shape."""
     if shape is None:
-        shape = DEFAULT_SHAPE
+        shape, _ = select_shape(job_details)
 
     with open(PROMPT_PATH, "r", encoding="utf-8") as f:
         prompt_template = f.read()
@@ -62,6 +60,7 @@ def generate_cover_letter(jd_text, cv_text, job_title, company_name, client,
         messages=[{"role": "user", "content": prompt}]
     )
 
+    record_shape_used(shape)
     return message.content[0].text.strip()
 
 
@@ -134,7 +133,8 @@ def build_cover_letter_docx(cover_letter_text, job_title, company_name, filename
 
 
 def main(job_title=None, company_name=None, output_dir=None,
-         missing_keywords=None, gaps=None, jd_text=None, shape=None):
+         missing_keywords=None, gaps=None, jd_text=None, shape=None,
+         job_details=None):
 
     # Use passed jd_text if provided, otherwise read from file
     if jd_text is None:
@@ -146,9 +146,13 @@ def main(job_title=None, company_name=None, output_dir=None,
 
     client = anthropic.Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
 
-    if not job_title or not company_name:
+    # One extraction call gives the title, company AND the role classification
+    # used to choose a shape. It is skipped when everything needed was passed in.
+    if job_details is None and (not job_title or not company_name or shape is None):
         print("Extracting job details...")
         job_details = extract_job_details(jd_text, client)
+
+    if not job_title or not company_name:
         job_title = job_details["job_title"]
         company_name = job_details["company_name"]
         print(f"  → {job_title} at {company_name}")
@@ -158,13 +162,18 @@ def main(job_title=None, company_name=None, output_dir=None,
         output_dir = os.path.join(OUTPUTS_DIR, folder_name)
     os.makedirs(output_dir, exist_ok=True)
 
-    shape_used = shape or DEFAULT_SHAPE
-    print(f"Generating cover letter (shape: {shape_used})...")
+    if shape is None:
+        shape, reason = select_shape(job_details)
+        print(f"Cover letter shape: {shape} ({reason})")
+    else:
+        print(f"Cover letter shape: {shape} (specified)")
+
+    print("Generating cover letter...")
     cover_letter_text = generate_cover_letter(
         jd_text, cv_text, job_title, company_name, client,
         missing_keywords=missing_keywords,
         gaps=gaps,
-        shape=shape_used
+        shape=shape
     )
 
     filename = os.path.join(
@@ -178,8 +187,10 @@ def main(job_title=None, company_name=None, output_dir=None,
 
 
 if __name__ == "__main__":
-    # Optional: pass a shape name to force it, e.g.
-    #   python generate_cover_letter.py story_first
+    # Usage:
+    #   python generate_cover_letter.py                 -> shape chosen automatically
+    #   python generate_cover_letter.py story_first     -> force a specific shape
+    #   python generate_cover_letter.py --list          -> show available shapes
     shape_arg = sys.argv[1] if len(sys.argv) > 1 else None
     if shape_arg in ("-h", "--help", "--list"):
         print("Available shapes:", ", ".join(list_shapes()))

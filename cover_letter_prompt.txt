@@ -24,10 +24,17 @@ ATTRIBUTION INTEGRITY:
 - Before using any specific example (a metric, a project, a result), verify which company section of CANDIDATE BACKGROUND it appears under and name that company correctly
 - If uncertain which company an achievement belongs to, do not use that example — choose a different one you can attribute with confidence
 - Cross-attributing a real achievement to the wrong employer is a critical error — treat it as seriously as fabricating an achievement entirely
+- Name the employer for EVERY achievement cited, including when several achievements are grouped in one sentence (e.g. "At APM Terminals I also co-authored..."). Never leave an achievement without its own employer anchor directly after a sentence about a different employer, because the reader will assume it belongs to the employer mentioned just before it
 - Metric names/labels must be reproduced EXACTLY as they appear in CANDIDATE BACKGROUND — do not introduce a rephrased, renamed, or synonymous variant of a metric (e.g. if CANDIDATE BACKGROUND states "defect slippage", do not write "defect escape rate" or any other rewording). If you are not certain of the exact metric name as stated, describe the outcome without attaching a metric label to it rather than inventing or approximating one
+- Tool, product and methodology names must also be reproduced exactly as written in CANDIDATE BACKGROUND (e.g. "Power BI", never "PowerBI"; "Azure DevOps", never "ADO")
 
 FIXED FACTUAL RULES (must always hold):
 - "CIO-1 level" never "CIO level"; "facilitated delivery of" payments work never "led"; "Digital Products Portfolio (DPP)" never "CP&S"; TCS and Ubique Systems are the only named vendors; APM Terminals tenure is three years (2022-2025), never imply seven; keep facts consistent with the CV (e.g. "multiple leadership changes")
+- Bunker Holding cycle time: reduced from above 20 days to below 14 days "within two quarters" — never restate it as a shorter or faster timeframe
+- People leadership: formal line management applies ONLY to the Infosys role (a team of 30). Roles in Denmark involved coaching and capability-building through influence — never claim direct line management or direct reports in Denmark
+- Financial governance: describe it as trusted stewardship or full visibility of spend — never claim P&L ownership
+- Vendor engagement: on-site vendor engagement was in India only. Serbia may be mentioned ONLY in connection with the 2019 Maersk Star Award (the writer's first Maersk engagement), never for the 2022-2025 APM Terminals period
+- The lapsed CSM certification must never be mentioned or listed
 - UK English spelling ("programme" not "program")
 
 JOB DESCRIPTION:
@@ -60,6 +67,10 @@ MAKING IT MEMORABLE WITHOUT BEING POMPOUS:
 - Vary sentence length. A short sentence after a longer one does more than any adjective
 - Include at least one sentence that sounds like this specific person and could not appear in anyone else's letter
 - No superlatives or intensifiers about the writer ("passionate", "exceptional", "deeply", "extremely", "thrilled")
+
+EVIDENCE DISCIPLINE:
+- Use at most 2-3 achievements in any one paragraph. Choose the ones that matter most for THIS role; do not recite the CV
+- Do not end an evidence paragraph with a self-assessment or a summary of suitability (e.g. "so I'm comfortable operating across that full range", "which makes me well suited", "which is exactly what this role needs"). End on a fact, or on what the evidence means for the work in this role
 
 FORWARD-LOOKING RULE (for any passage about value to the team or organisation):
 - Frame it as what the writer would look at, explore or contribute — a hypothesis, not a promise. For example: "I'd want to understand X before changing anything, but my instinct is Y"

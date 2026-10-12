@@ -47,7 +47,7 @@ For each role that clears both gates, the tool generates:
 
 - A tailored CV (.docx) — Professional Summary and Experience rewritten for the specific role, achievements selected from the full pool documented per role based on genuine relevance to the JD
 - An ATS-friendly CV (.docx) — same content, tables converted to plain text for reliable parsing by Applicant Tracking Systems (SuccessFactors, Workday, etc.)
-- A cover letter (.docx) — warm, concise, Danish market appropriate, calibrated for humility over self-promotion, with variety guardrails to avoid templated-sounding openings/transitions/closings
+- A cover letter (.docx) — warm, concise, Danish market appropriate, calibrated for humility over self-promotion. Built from one of several selectable letter structures (see Cover letter shapes), so letters differ in shape as well as wording, and always cover the writer's strengths, how they fit the role, and the value they could add to the team
 - A keyword match report (.txt) — score, matching keywords, gaps, recommendation
 
 All outputs land in a named folder: `cv-outputs/Job Title @ Company/`
@@ -90,13 +90,21 @@ cv-tailor/                       <- repo (code only)
 ├── keyword_match.py             <- Gate 2
 ├── tailor_cv.py                 <- CV tailoring engine
 ├── generate_cover_letter.py     <- Cover letter generator
+├── shape_selector.py            <- Picks a cover letter shape by weighted random choice
 ├── batch_processor.py           <- Batch mode orchestrator (terminal)
 ├── build_docx.js                <- Word document builder — formatted version (Node.js)
 ├── build_docx_ats.js            <- Word document builder — ATS-friendly plain text version (Node.js)
 ├── utils.py                     <- Shared utilities
 ├── config.py                    <- Path configuration
 ├── prompt_config.txt            <- CV tailoring prompt (editable)
-├── cover_letter_prompt.txt      <- Cover letter prompt (editable)
+├── cover_letter_prompt.txt      <- Cover letter base prompt: tone, guardrails, rules (editable)
+├── cover_letter_shapes/         <- One file per cover letter structure (editable, add your own)
+│   ├── problem_first.txt
+│   ├── story_first.txt
+│   ├── three_strengths.txt
+│   ├── direct_short.txt
+│   └── question_led.txt
+├── cover_letter_weights.txt     <- Which shapes suit which kind of role, and how likely (editable)
 ├── stress_test_prompt.txt       <- Stress test parameters (editable)
 ├── keyword_match_prompt.txt     <- Keyword match prompt (editable)
 └── cv_structure.txt             <- CV section headings and types (editable)
@@ -190,7 +198,7 @@ After any code change, restart the running service with:
 
 1. Open `http://localhost:8501`
 2. Paste the job description in the **Single JD** tab
-3. Choose a mode from the sidebar (Full Run is the most common)
+3. Choose a mode from the sidebar (Full Run is the most common), and optionally a cover letter style (Auto by default)
 4. Click **▶ Run**
 5. Review stress test and keyword match results inline; proceed or stop at borderline points
 6. Download the tailored CV, ATS-friendly CV, and cover letter directly from the browser
@@ -229,7 +237,9 @@ All prompts and structure files are plain text and can be edited without touchin
 | File | Controls |
 |---|---|
 | `prompt_config.txt` | How Claude tailors the CV — achievement selection, summary tone, fixed factual rules, attribution integrity |
-| `cover_letter_prompt.txt` | Tone, humility calibration, variety guardrails, echo-prevention, and structure of the cover letter |
+| `cover_letter_prompt.txt` | Shared rules for every cover letter — tone, humility calibration, attribution integrity, fixed factual rules, forward-looking rule, variety guardrails, echo-prevention, length and closing |
+| `cover_letter_shapes/*.txt` | One file per cover letter structure (paragraph-by-paragraph instructions). Add a new `.txt` file to add a new shape |
+| `cover_letter_weights.txt` | Which shapes are eligible for which kind of role (seniority, how specific the JD is, agency-posted or not) and how likely each is |
 | `stress_test_prompt.txt` | Stress test parameters and scoring logic |
 | `keyword_match_prompt.txt` | How Claude scores keyword alignment |
 | `cv_structure.txt` | CV section headings and types (narrative or table) |
@@ -255,6 +265,64 @@ A narrow, named exception exists for the Collinson Group role (2012–2014): whe
 ## Echo-prevention
 
 Both the CV summary and the cover letter are instructed not to mirror the job description's own distinctive phrasing back to the reader. A hiring manager who wrote or knows the JD recognises their own words reflected back, which reads as telling them what they want to hear rather than demonstrating genuine understanding. The substance of what the JD is asking for should still come through — just restated in the candidate's own plain language rather than lifted from the posting.
+
+---
+
+## Cover letter shapes
+
+A cover letter is assembled from two parts: a shared base prompt (`cover_letter_prompt.txt`) holding everything that must hold for every letter, and one *shape* file from `cover_letter_shapes/` that defines the paragraph-by-paragraph structure for that particular letter. The guardrails stay identical across letters while the structure — and therefore how the letter feels — changes.
+
+| Shape | Structure | Designed for |
+|---|---|---|
+| `problem_first` | Opens with the writer's own read of the role's central challenge, then the strengths that bear on it, then what they would bring | Senior roles where the JD describes a real problem |
+| `story_first` | Opens inside one real situation from the CV, then connects it to what the role demands | Senior roles with a generic JD, where experience carries more weight than a described challenge |
+| `three_strengths` | Why this role, the three strengths the role weighs most (written as prose, not a list), what the writer would add | Checklist-style JDs and mid-level roles |
+| `direct_short` | 120–170 words: fit, evidence and value, close | Recruiter-screened processes |
+| `question_led` | Opens with one genuine question the team is probably asking, then the writer's approach to it | Roles with a clear central challenge where a fresh angle helps |
+
+Whatever the shape, every letter must make three things clear: what the writer is genuinely good at (shown through evidence from the master CV, not adjectives), how that connects to what the role demands, and how the writer could add value to the team and the wider organisation.
+
+**Keeping it memorable without being pompous.** The base prompt asks for specificity rather than volume: one vivid, concrete detail (a number, a before/after) instead of several general claims, one plain point of view, varied sentence length, and no superlatives or intensifiers about the writer. Letters target 200–280 words (120–170 for `direct_short`).
+
+**Forward-looking rule.** Any passage about value to the team must be framed as a hypothesis — what the writer would look at or contribute — grounded in experience that actually appears in the master CV. It must never promise specific results or claim insider knowledge of the company.
+
+### How a shape is chosen
+
+By default the shape is chosen automatically, in three steps:
+
+1. **Classify the role.** The extraction call that already reads the JD for the job title and company name also returns three classifications: the seniority of the role (`senior`, `mid`, `junior`), whether the JD describes a concrete situation or challenge (`specific`) or mainly lists standard responsibilities (`generic`), and whether it looks like a recruitment agency posting. In the Streamlit app this costs no extra API call.
+2. **Look up the weights.** `cover_letter_weights.txt` is a plain-text table mapping those classifications to shapes and how likely each one is. The first matching row wins. The defaults are starting points, and you can edit them freely:
+
+| Kind of role | Shapes and weights |
+|---|---|
+| Agency-posted | `direct_short` 60, `three_strengths` 40 |
+| Senior, specific JD | `problem_first` 50, `story_first` 40, `question_led` 10 |
+| Senior, generic JD | `story_first` 50, `three_strengths` 30, `problem_first` 20 |
+| Mid-level, specific JD | `three_strengths` 35, `problem_first` 25, `story_first` 20, `direct_short` 10, `question_led` 10 |
+| Mid-level, generic JD | `three_strengths` 50, `direct_short` 30, `story_first` 20 |
+| Junior | `three_strengths` 50, `direct_short` 40, `story_first` 10 |
+
+3. **Draw at random.** `shape_selector.py` makes a weighted random choice from the matching row and never repeats the shape used for the previous letter (remembered in a small hidden file next to the outputs, outside the repo; if that file can't be written, letter generation is unaffected).
+
+The randomness lives in the code, not in the prompt: Claude only ever sees the one chosen structure, so it cannot drift back to a default pattern. If the model ever returns a missing or unrecognised classification, neutral defaults are used (senior, generic JD, direct posting).
+
+### Overriding the style
+
+In the Streamlit app, the **Cover letter style** dropdown in the sidebar is set to **Auto** by default. Pick a specific style to force it; this applies to every letter in a batch run too, and Batch Mode shows a warning while a style is forced. The style used is shown under the cover letter, in the batch results, and in the batch summary file.
+
+From the terminal, reading `job_description.txt` and writing to the usual output folder:
+
+```bash
+python3 generate_cover_letter.py                 # chosen automatically
+python3 generate_cover_letter.py story_first     # force a specific shape
+python3 generate_cover_letter.py --list          # show available shapes
+```
+
+(On Windows, use `python` instead of `python3`.) The terminal menu and terminal batch mode also select shapes automatically, but they do not yet carry the role classification through, so each letter costs one extra small classification call.
+
+### Adding your own shape
+
+Drop a new `.txt` file into `cover_letter_shapes/`. It becomes available immediately for forcing, with no code change. Follow the format of the existing files: a short header, then paragraph-by-paragraph instructions, referring to the base prompt's FORWARD-LOOKING and CLOSING rules by name rather than restating them. To make it eligible for automatic selection, add it to the relevant rows of `cover_letter_weights.txt`; shapes not listed there are only used when forced.
 
 ---
 
@@ -305,6 +373,8 @@ The CV tailoring and cover letter prompts explicitly instruct Claude:
 - Cover letters favour understatement over self-promotion, and acknowledge prior employment at the same company (where applicable) with humility rather than as a leveraged credential — kept to a brief passing mention where that prior employment is far in the past
 - Cover letters avoid repeating the same opening sentence structure, the same "concrete example" transition phrase, or the same closing line across different letters — each letter should read as written for that specific role, not generated from a fixed template
 - Cover letters do not mirror the JD's own distinctive phrasing back to the reader (see Echo-prevention above)
+- Cover letters describe value to the team as a hypothesis grounded in real experience, never as a promise of results or a claim of insider knowledge about the company (see Cover letter shapes)
+- Cover letters name the employer for every achievement they cite, and reproduce metric, tool and product names exactly as written in the master CV
 - Cover letters do not unprompted resurface a prior interview or rejection with the same hiring manager if it is not actively remembered — a fresh introduction stays fresh
 
 These are prompt-level controls. Spot-check output periodically, particularly company-to-achievement pairings in cover letters, especially in the first several runs after any prompt change.
@@ -332,6 +402,7 @@ Output filenames include the candidate name, job title, and company. Both spaces
 
 ## Roadmap (v2)
 
+- Apply the tailored tagline and Core Competencies in the Streamlit CV flow — currently only the terminal path (`main()` in `tailor_cv.py`) substitutes them into the CV, while `app.py` builds its CV data from the original header and tables. Planned fix: one shared helper used by both paths
 - Automated cross-check step verifying company-to-achievement attribution before download
 - JD fetch from URL — paste a link, tool fetches the JD automatically
 - LinkedIn workaround via browser extension
@@ -352,6 +423,19 @@ Output filenames include the candidate name, job title, and company. Both spaces
 ---
 
 ## Changelog
+
+### v1.8
+- Cover letter restructured into a shared base prompt plus selectable shapes — the fixed four-paragraph structure is replaced by five structures in `cover_letter_shapes/` (`problem_first`, `story_first`, `three_strengths`, `direct_short`, `question_led`), so letters vary in shape and feel and not only in wording
+- Cover letters now explicitly cover the writer's strengths, how they fit the role's demands, and the value they could add to the team and organisation, rather than only recounting the past
+- Forward-looking rule added — value-to-team passages must be hypotheses grounded in real CV experience, never promises of results or claims of insider knowledge
+- Evidence discipline added to cover letters — every achievement must name its own employer (including when several are grouped in one sentence), tool and product names must match the master CV exactly (e.g. "Power BI"), and evidence paragraphs are capped at two or three achievements and must not end on a self-assessment line
+- "Memorable without pompous" guidance added — specificity over volume, one point of view, varied rhythm, no superlatives or intensifiers; target length set at 200–280 words
+- Cover letter prompt's fixed factual rules now mirror `prompt_config.txt` — Bunker Holding cycle time ("within two quarters"), formal line management only at Infosys, no P&L ownership, on-site vendor engagement in India only with Serbia mentioned only in the 2019 Star Award context, and the lapsed CSM certification never listed
+- Automatic, role-weighted shape selection — `extract_job_details()` now also returns `seniority_tier`, `problem_specificity` and `agency_posted` from the same single API call (with safe fallbacks if the model returns anything unexpected); the new `shape_selector.py` reads the editable `cover_letter_weights.txt` and makes a weighted random choice, never repeating the previous letter's shape
+- Streamlit: new "Cover letter style" sidebar dropdown (Auto, or force a specific shape, including across a batch run); the style used is shown under the cover letter and in batch results, and recorded in the batch summary file
+- `generate_cover_letter()` and `main()` accept optional `shape` and `job_details` parameters; with neither, a shape is chosen automatically from neutral defaults, so existing callers in `menu.py` and `batch_processor.py` keep working unchanged (the terminal flows cost one extra small classification call per letter). A shape can also be forced from the terminal with `python3 generate_cover_letter.py <shape>`
+- Fixed `main()` in `generate_cover_letter.py` building its output filename without sanitising `/` in company names (e.g. "Ambu A/S"), which had been fixed elsewhere but missed here
+- Cover letter prompt and shape files are now read as UTF-8 and located relative to the module, so they load correctly regardless of working directory or Windows default encoding
 
 ### v1.7
 - Node.js invocation made cross-platform — replaced hardcoded Mac-only `os.system("cd /Users/... && /usr/local/bin/node ...")` calls with a `run_node_build()` helper in `utils.py` that locates Node via `shutil.which("node")` and invokes it with `subprocess.run(cwd=...)`. No hardcoded paths or shell-specific syntax; works unchanged on macOS, Windows, and (eventually) the Mac Mini as long as Node is on PATH

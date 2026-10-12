@@ -10,6 +10,7 @@ from stress_test import run_stress_test
 from keyword_match import run_keyword_match, save_keyword_report
 from tailor_cv import extract_cv_sections, tailor_with_claude, load_cv_structure
 from generate_cover_letter import generate_cover_letter, build_cover_letter_docx
+from shape_selector import select_shape, list_shapes
 from utils import run_node_build
 
 # --- Page config ---
@@ -37,6 +38,10 @@ def safe_read_bytes(path, retries=5, delay=0.4):
             last_error = e
             time.sleep(delay)
     raise last_error
+
+def format_shape_name(name):
+    """'problem_first' -> 'Problem first' (for display only)."""
+    return name.replace("_", " ").capitalize()
 
 def stress_test_color(result):
     if result == "PASS":
@@ -80,10 +85,13 @@ def render_keyword_report(report):
     st.markdown(f"**Gaps:** {report['gaps']}")
     st.markdown(f"**Recommendation:** {report['recommendation']}")
 
-def process_single_jd_ui(jd_text, client, cv_text):
+def process_single_jd_ui(jd_text, client, cv_text, shape_override=None):
     """Process a single JD through the full pipeline for batch mode.
     Borderline results continue to document generation — no interactive prompts.
     Only hard FAILs stop processing.
+
+    shape_override: force a specific cover letter shape for this JD. If None,
+    the shape is chosen automatically from the role's classification.
     """
     result = {
         "status": "PASS",
@@ -97,6 +105,8 @@ def process_single_jd_ui(jd_text, client, cv_text):
         "cl_path": None,
         "cv_filename": None,
         "cl_filename": None,
+        "cl_shape": None,
+        "cl_shape_reason": None,
         "output_dir": None,
     }
 
@@ -133,7 +143,7 @@ def process_single_jd_ui(jd_text, client, cv_text):
         result["stop_reason"] = f"Moderate keyword match ({score}/10)"
         # Continue to generate documents despite borderline
 
-    # Extract job details
+    # Extract job details (title, company and the role classification)
     job_details = extract_job_details(jd_text, client)
     job_title = job_details["job_title"]
     company_name = job_details["company_name"]
@@ -182,11 +192,20 @@ def process_single_jd_ui(jd_text, client, cv_text):
     result["cv_ats_path"] = os.path.join(output_dir, f"{filename_base}_ATS.docx")
     result["cv_ats_filename"] = f"{filename_base}_ATS.docx"
 
+    # Choose the cover letter shape (forced, or automatic from the classification)
+    if shape_override:
+        shape, shape_reason = shape_override, "chosen manually"
+    else:
+        shape, shape_reason = select_shape(job_details)
+    result["cl_shape"] = shape
+    result["cl_shape_reason"] = shape_reason
+
     # Build cover letter
     cl_text = generate_cover_letter(
         jd_text, cv_text, job_title, company_name, client,
         missing_keywords=missing_keywords,
-        gaps=gaps
+        gaps=gaps,
+        shape=shape
     )
 
     cl_filename = f"Subhash_Yadav_Cover_Letter_{job_title}_{company_name}.docx".replace(" ", "_").replace("/", "-")
@@ -209,10 +228,13 @@ def init_state():
         "keyword_report": None,
         "job_title": None,
         "company_name": None,
+        "job_details": None,
         "output_dir": None,
         "cv_path": None,
         "cl_path": None,
         "cl_text": None,
+        "cl_shape": None,
+        "cl_shape_reason": None,
         "missing_keywords": [],
         "gaps": "",
         "filename_base": None,
@@ -240,6 +262,20 @@ mode = st.sidebar.radio(
         "Cover Letter only",
     ]
 )
+
+# Cover letter style: Auto picks a shape from the role's classification
+# (seniority, how specific the JD is, agency-posted or not). Choosing a
+# specific style forces it for the next run, including every JD in a batch.
+shape_options = {"Auto": None}
+for _shape in list_shapes():
+    shape_options[format_shape_name(_shape)] = _shape
+
+shape_choice = st.sidebar.selectbox(
+    "Cover letter style",
+    list(shape_options.keys()),
+    help="Auto chooses a style based on the role. Pick one to force it."
+)
+letter_shape_override = shape_options[shape_choice]
 
 st.sidebar.markdown("---")
 
@@ -375,6 +411,7 @@ with tab1:
             with st.spinner("Extracting job details..."):
                 client = get_client()
                 job_details = extract_job_details(st.session_state.jd_text, client)
+                st.session_state.job_details = job_details
                 st.session_state.job_title = job_details["job_title"]
                 st.session_state.company_name = job_details["company_name"]
                 folder_name = f"{st.session_state.job_title} @ {st.session_state.company_name}".replace("/", "-")
@@ -504,12 +541,22 @@ with tab1:
             with st.spinner("Generating cover letter..."):
                 client = get_client()
                 cv_text = read_cv_text()
+
+                # Forced style from the sidebar, or automatic from the role's classification
+                if letter_shape_override:
+                    shape, shape_reason = letter_shape_override, "chosen manually"
+                else:
+                    shape, shape_reason = select_shape(st.session_state.job_details)
+                st.session_state.cl_shape = shape
+                st.session_state.cl_shape_reason = shape_reason
+
                 st.session_state.cl_text = generate_cover_letter(
                     st.session_state.jd_text, cv_text,
                     st.session_state.job_title, st.session_state.company_name,
                     client,
                     missing_keywords=st.session_state.missing_keywords,
-                    gaps=st.session_state.gaps
+                    gaps=st.session_state.gaps,
+                    shape=shape
                 )
 
                 cl_filename = f"Subhash_Yadav_Cover_Letter_{st.session_state.job_title}_{st.session_state.company_name}.docx".replace(" ", "_").replace("/", "-")
@@ -525,6 +572,11 @@ with tab1:
 
         st.subheader("Cover Letter")
         st.success("✅ Cover letter generated")
+        if st.session_state.cl_shape:
+            st.caption(
+                f"Letter style: {format_shape_name(st.session_state.cl_shape)} "
+                f"({st.session_state.cl_shape_reason})"
+            )
         st.markdown(st.session_state.cl_text)
 
         if os.path.exists(st.session_state.cl_path):
@@ -550,6 +602,11 @@ with tab2:
     st.title("Batch Mode")
     st.markdown("Upload multiple job description files and process them all in one go.")
     st.info("Borderline roles will still generate documents and be flagged clearly in the summary. Only hard FAILs are skipped.")
+    if letter_shape_override:
+        st.warning(
+            f"Cover letter style is set to **{format_shape_name(letter_shape_override)}** in the sidebar, "
+            "so every letter in this batch will use it. Set it back to Auto to vary the style by role."
+        )
 
     uploaded_files = st.file_uploader(
         "Upload JD files (.txt)",
@@ -576,7 +633,10 @@ with tab2:
                 st.markdown(f"### {i+1}/{len(uploaded_files)}: {filename}")
 
                 with st.spinner(f"Processing {filename}..."):
-                    result = process_single_jd_ui(jd_text, client, cv_text)
+                    result = process_single_jd_ui(
+                        jd_text, client, cv_text,
+                        shape_override=letter_shape_override
+                    )
                     result["filename"] = filename
                     batch_log.append(result)
 
@@ -588,6 +648,8 @@ with tab2:
                 elif result["status"] == "BORDERLINE":
                     st.warning(f"⚠️ BORDERLINE — {result['job_title']} at {result['company_name']} (keyword: {result['keyword_score']}/10)")
                     st.caption(f"Note: {result['stop_reason']}")
+                    if result.get("cl_shape"):
+                        st.caption(f"Letter style: {format_shape_name(result['cl_shape'])} ({result['cl_shape_reason']})")
                     col1, col2 = st.columns(2)
                     with col1:
                         if result["cv_path"] and os.path.exists(result["cv_path"]):
@@ -610,6 +672,8 @@ with tab2:
 
                 else:
                     st.success(f"✅ PASS — {result['job_title']} at {result['company_name']} (keyword: {result['keyword_score']}/10)")
+                    if result.get("cl_shape"):
+                        st.caption(f"Letter style: {format_shape_name(result['cl_shape'])} ({result['cl_shape_reason']})")
                     col1, col2 = st.columns(2)
                     with col1:
                         if result["cv_path"] and os.path.exists(result["cv_path"]):
@@ -658,13 +722,14 @@ with tab2:
             for r in batch_log:
                 label = f"{r['job_title']} @ {r['company_name']}"
                 score = f"  (keyword: {r['keyword_score']}/10)" if r['keyword_score'] else ""
+                style = f"  [letter: {r['cl_shape']}]" if r.get("cl_shape") else ""
                 if r["status"] == "PASS":
-                    summary_lines.append(f"PASS       {label}{score}")
+                    summary_lines.append(f"PASS       {label}{score}{style}")
                 elif r["status"] == "FAIL":
                     summary_lines.append(f"FAIL       {r['filename']}")
                     summary_lines.append(f"  Reason: {r['stop_reason']}")
                 else:
-                    summary_lines.append(f"BORDERLINE {label}{score}")
+                    summary_lines.append(f"BORDERLINE {label}{score}{style}")
                     summary_lines.append(f"  Note: {r['stop_reason']}")
                 summary_lines.append("")
 
