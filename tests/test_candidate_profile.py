@@ -137,7 +137,8 @@ REAL_PROFILE = os.path.join(config.INPUTS_DIR, "profile.toml")
 @pytest.mark.skipif(not os.path.exists(REAL_PROFILE), reason="no private profile on this machine")
 def test_real_profile_values_never_appear_in_the_repo():
     real = candidate_profile.load_profile(REAL_PROFILE)
-    secrets = [real["name"], real["contact_line"], real["home_base"], real["min_salary"]]
+    # The name is deliberately public (LICENSE copyright line), so it isn't checked.
+    secrets = [real["contact_line"], real["home_base"], real["min_salary"]]
     secrets += [line.strip("- ").strip() for line in real["candidate_profile"].splitlines()
                 if len(line.strip()) > 30]
     leaks = [f"{name}: {secret[:40]!r}…"

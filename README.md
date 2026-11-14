@@ -544,3 +544,7 @@ The app itself is plain Python (Streamlit) + two Node.js scripts for `.docx` gen
    streamlit run app.py
    ```
    Then open http://localhost:8501. On macOS this can also run as a persistent background service (see "Running as a persistent background service (macOS)" above) — there's currently no Windows equivalent, so on Windows you start it manually each session.
+
+## Licence
+
+This project is released under the [MIT Licence](LICENSE).
