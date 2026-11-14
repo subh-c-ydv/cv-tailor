@@ -109,5 +109,77 @@ def synthetic_cv(tmp_path):
     return _build_synthetic_cv(str(tmp_path / "master_cv.docx"))
 
 
+PASS_REPORT = {"overall": "PASS", "verdict": "Good fit.", "parameters": [
+    {"name": "Location", "result": "PASS", "reason": "Copenhagen"}]}
+
+
+def keyword_report(score):
+    return {"score": score, "matching_keywords": ["Agile"], "missing_keywords": ["SAFe"],
+            "gaps": "No SAFe.", "recommendation": "Send"}
+
+
+@pytest.fixture
+def fake_pipeline(monkeypatch):
+    """Replace every paid or slow step with a fake. Returns a dict the test
+    can tweak (stress report, keyword score, failures) and inspect (calls)."""
+    import generate_cover_letter
+    import keyword_match
+    import stress_test
+    import tailor_cv
+
+    state = {"stress": PASS_REPORT, "keyword_score": 8, "calls": [], "fail_on": None}
+
+    def step(name):
+        state["calls"].append(name)
+        if state["fail_on"] == name:
+            raise RuntimeError(f"{name} exploded")
+
+    monkeypatch.setattr(utils, "get_client", lambda: object())
+    monkeypatch.setattr(utils, "read_cv_text", lambda: "CV TEXT")
+
+    def fake_stress(jd, client):
+        step("stress")
+        return state["stress"](jd) if callable(state["stress"]) else state["stress"]
+    monkeypatch.setattr(stress_test, "run_stress_test", fake_stress)
+
+    def fake_keyword(jd, cv, client):
+        step("keyword")
+        return keyword_report(state["keyword_score"])
+    monkeypatch.setattr(keyword_match, "run_keyword_match", fake_keyword)
+
+    def fake_details(jd, client):
+        step("details")
+        return {"job_title": "Delivery Lead", "company_name": "Acme",
+                "seniority_tier": "senior", "problem_specificity": "specific", "agency_posted": False}
+    monkeypatch.setattr(utils, "extract_job_details", fake_details)
+
+    monkeypatch.setattr(tailor_cv, "extract_cv_sections",
+                        lambda path, structure: {"header": ["Jane", "Tagline"], "tables": {}})
+
+    def fake_tailor(sections, jd, client, structure, missing_keywords=None, gaps=None):
+        step("tailor")
+        state["tailor_inputs"] = (missing_keywords, gaps)
+        return {"professional_summary": "S", "professional_experience": ["E"]}
+    monkeypatch.setattr(tailor_cv, "tailor_with_claude", fake_tailor)
+
+    def fake_build(sections, structure, tailored, title, company, output_dir):
+        base = utils.cv_filename_base(title, company)
+        paths = {"filename_base": base,
+                 "cv_path": os.path.join(output_dir, base + ".docx"),
+                 "cv_ats_path": os.path.join(output_dir, base + "_ATS.docx")}
+        for key in ("cv_path", "cv_ats_path"):
+            with open(paths[key], "wb") as f:
+                f.write(b"docx")
+        return paths
+    monkeypatch.setattr(tailor_cv, "build_cv_documents", fake_build)
+
+    def fake_letter(jd, cv, title, company, client, missing_keywords=None, gaps=None, shape=None, job_details=None):
+        step("letter")
+        state["letter_shape"] = shape
+        return "Dear team,\n\nI'd like to apply."
+    monkeypatch.setattr(generate_cover_letter, "generate_cover_letter", fake_letter)
+    return state
+
+
 def node_available():
     return bool(shutil.which("node")) and os.path.isdir(os.path.join(REPO_ROOT, "node_modules", "docx"))

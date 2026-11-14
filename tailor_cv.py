@@ -1,18 +1,14 @@
 import os
 import re
 import json
+import tempfile
 from docx import Document
 from docx.oxml.ns import qn
-from config import CV_PATH, CV_DATA_PATH
 from utils import (
-    read_jd,
-    extract_job_details,
-    get_client,
     app_file,
     read_text_file,
     load_prompt,
     ask_claude_json,
-    make_output_dir,
     cv_filename_base,
     run_node_build,
 )
@@ -242,8 +238,8 @@ def build_cv_documents(sections, structure, tailored, job_title, company_name, o
     """Write the tailored CV as both the styled and the ATS-friendly .docx.
 
     This is the single place where Claude's tailoring is merged into the
-    master CV (tagline, core competencies, summary, experience), so every
-    interface (Streamlit, terminal menu, batch) produces the same document.
+    master CV (tagline, core competencies, summary, experience), so the
+    single-JD and batch flows produce exactly the same document.
 
     Returns a dict with filename_base, cv_path and cv_ats_path."""
     filename_base = cv_filename_base(job_title, company_name)
@@ -274,11 +270,17 @@ def build_cv_documents(sections, structure, tailored, job_title, company_name, o
         }
     }
 
-    with open(CV_DATA_PATH, "w", encoding="utf-8") as f:
+    # Each build gets its own temporary data file, so two runs can never
+    # overwrite each other's input, and nothing is left behind afterwards.
+    with tempfile.NamedTemporaryFile("w", encoding="utf-8", suffix=".json",
+                                     prefix="cv_data_", delete=False) as f:
         json.dump(output_data, f, indent=2)
-
-    run_node_build("build_docx.js")
-    run_node_build("build_docx_ats.js")
+        data_path = f.name
+    try:
+        run_node_build("build_docx.js", data_path)
+        run_node_build("build_docx.js", data_path, "--ats")
+    finally:
+        os.remove(data_path)
 
     paths = {
         "filename_base": filename_base,
@@ -289,47 +291,3 @@ def build_cv_documents(sections, structure, tailored, job_title, company_name, o
         if not os.path.exists(paths[key]):
             raise RuntimeError(f"The document builder reported success but {paths[key]} was not created.")
     return paths
-
-
-def main(job_title=None, company_name=None, output_dir=None,
-         missing_keywords=None, gaps=None, jd_text=None):
-
-    print("\nLoading CV structure...")
-    structure = load_cv_structure()
-
-    print("Reading your CV...")
-    sections = extract_cv_sections(CV_PATH, structure)
-
-    if jd_text is None:
-        print("Reading job description...")
-        jd_text = read_jd()
-
-    client = get_client()
-
-    if not job_title or not company_name:
-        print("Extracting job title and company from JD...")
-        job_details = extract_job_details(jd_text, client)
-        job_title = job_details["job_title"]
-        company_name = job_details["company_name"]
-        print(f"  → {job_title} at {company_name}")
-
-    if output_dir is None:
-        output_dir = make_output_dir(job_title, company_name)
-    os.makedirs(output_dir, exist_ok=True)
-
-    print("Sending to Claude for tailoring (this may take 30 seconds)...")
-    tailored = tailor_with_claude(
-        sections, jd_text, client, structure,
-        missing_keywords=missing_keywords,
-        gaps=gaps
-    )
-
-    print("Tailoring done. Building Word document...")
-    build_cv_documents(sections, structure, tailored, job_title, company_name, output_dir)
-
-    print(f"\nDone! CV saved to: {output_dir}")
-    return job_title, company_name, output_dir
-
-
-if __name__ == "__main__":
-    main()

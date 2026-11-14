@@ -7,7 +7,7 @@ import subprocess
 import anthropic
 from docx import Document
 
-from config import APP_DIR, CV_PATH, JD_PATH, OUTPUTS_DIR, CLAUDE_MODEL
+from config import APP_DIR, CV_PATH, OUTPUTS_DIR, CLAUDE_MODEL
 
 # Kept under its old name for existing imports (shape_selector, generate_cover_letter).
 CV_TAILOR_DIR = APP_DIR
@@ -63,15 +63,6 @@ def decode_text_bytes(data):
         except UnicodeDecodeError:
             continue
     return data.decode("latin-1")
-
-
-def read_jd_text_file(path):
-    with open(path, "rb") as f:
-        return decode_text_bytes(f.read())
-
-
-def read_jd():
-    return read_jd_text_file(JD_PATH)
 
 
 def read_cv_text():
@@ -198,10 +189,10 @@ def ask_claude_json(client, prompt, max_tokens, what):
 # Node.js document builders
 # ---------------------------------------------------------------------------
 
-def run_node_build(script_name, timeout=120):
+def run_node_build(script_name, *args, timeout=120):
     """
-    Run a Node.js build script (e.g. build_docx.js) next to this file,
-    regardless of OS or where the process's working directory happens to be.
+    Run a Node.js build script (e.g. build_docx.js) next to this file with
+    the given arguments, regardless of OS or the current working directory.
     Uses 'node' from PATH instead of a hardcoded Mac install location.
     """
     node_exe = shutil.which("node")
@@ -213,7 +204,7 @@ def run_node_build(script_name, timeout=120):
 
     try:
         result = subprocess.run(
-            [node_exe, script_name],
+            [node_exe, script_name, *args],
             cwd=APP_DIR,
             capture_output=True,
             # Node writes UTF-8; Windows would otherwise decode it as cp1252.
@@ -226,17 +217,7 @@ def run_node_build(script_name, timeout=120):
 
     if result.returncode != 0:
         raise RuntimeError(f"{script_name} failed:\n{result.stderr or result.stdout}")
-    print(result.stdout)
     return result
-
-
-def build_word_documents():
-    """Run both Node.js document builders (build_docx.js and
-    build_docx_ats.js) in an OS-agnostic way. Works from any working
-    directory on macOS, Windows, or Linux, as long as Node.js is on
-    the system PATH."""
-    for script in ["build_docx.js", "build_docx_ats.js"]:
-        run_node_build(script)
 
 
 # ---------------------------------------------------------------------------
@@ -304,10 +285,3 @@ JOB DESCRIPTION:
 
     raw = ask_claude_json(client, prompt, max_tokens=500, what="job details")
     return _normalise_job_details(raw)
-
-
-if __name__ == "__main__":
-    # Quick check: classify the JD in job_description.txt and print the result.
-    #   python utils.py
-    details = extract_job_details(read_jd(), get_client())
-    print(json.dumps(details, indent=2, ensure_ascii=False))

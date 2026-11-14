@@ -1,18 +1,7 @@
 import os
 import re
-import sys
 from docx import Document
-from utils import (
-    read_jd,
-    read_cv_text,
-    extract_job_details,
-    get_client,
-    app_file,
-    read_text_file,
-    ask_claude,
-    make_output_dir,
-    cover_letter_filename,
-)
+from utils import app_file, read_text_file, ask_claude
 from shape_selector import (
     SHAPES_DIR,
     list_shapes,
@@ -140,65 +129,3 @@ def build_cover_letter_docx(cover_letter_text, job_title, company_name, filename
     name_sign_run.font.color.rgb = RGBColor(0x1F, 0x2D, 0x3D)
 
     doc.save(filename)
-
-
-def main(job_title=None, company_name=None, output_dir=None,
-         missing_keywords=None, gaps=None, jd_text=None, shape=None,
-         job_details=None):
-
-    # Use passed jd_text if provided, otherwise read from file
-    if jd_text is None:
-        print("\nReading job description...")
-        jd_text = read_jd()
-
-    print("Reading CV...")
-    cv_text = read_cv_text()
-
-    client = get_client()
-
-    # One extraction call gives the title, company AND the role classification
-    # used to choose a shape. It is skipped when everything needed was passed in.
-    if job_details is None and (not job_title or not company_name or shape is None):
-        print("Extracting job details...")
-        job_details = extract_job_details(jd_text, client)
-
-    if not job_title or not company_name:
-        job_title = job_details["job_title"]
-        company_name = job_details["company_name"]
-        print(f"  → {job_title} at {company_name}")
-
-    if output_dir is None:
-        output_dir = make_output_dir(job_title, company_name)
-    os.makedirs(output_dir, exist_ok=True)
-
-    if shape is None:
-        shape, reason = select_shape(job_details)
-        print(f"Cover letter shape: {shape} ({reason})")
-    else:
-        print(f"Cover letter shape: {shape} (specified)")
-
-    print("Generating cover letter...")
-    cover_letter_text = generate_cover_letter(
-        jd_text, cv_text, job_title, company_name, client,
-        missing_keywords=missing_keywords,
-        gaps=gaps,
-        shape=shape
-    )
-
-    filename = os.path.join(output_dir, cover_letter_filename(job_title, company_name))
-    build_cover_letter_docx(cover_letter_text, job_title, company_name, filename)
-
-    print(f"\nDone! Cover letter saved to: {filename}")
-    return job_title, company_name, output_dir
-
-
-if __name__ == "__main__":
-    # Usage:
-    #   python generate_cover_letter.py                 -> shape chosen automatically
-    #   python generate_cover_letter.py story_first     -> force a specific shape
-    #   python generate_cover_letter.py --list          -> show available shapes
-    shape_arg = sys.argv[1] if len(sys.argv) > 1 else None
-    if shape_arg in ("-h", "--help", "--list"):
-        print("Available shapes:", ", ".join(list_shapes()))
-    else:
-        main(shape=shape_arg)

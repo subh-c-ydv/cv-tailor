@@ -68,12 +68,6 @@ def test_decode_text_bytes_never_raises():
     assert isinstance(utils.decode_text_bytes(bytes([0x81, 0x8D, 0x41])), str)
 
 
-def test_read_jd_text_file_handles_cp1252(tmp_path):
-    path = tmp_path / "jd.txt"
-    path.write_bytes("Konsulent – København".encode("cp1252"))
-    assert utils.read_jd_text_file(str(path)) == "Konsulent – København"
-
-
 # --- Claude replies -------------------------------------------------------------
 
 def test_ask_claude_returns_text(fake_client):

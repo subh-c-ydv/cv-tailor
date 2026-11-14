@@ -1,4 +1,5 @@
 import json
+import os
 
 import pytest
 
@@ -208,6 +209,20 @@ def test_markdown_bold_is_rendered_not_printed(synthetic_cv, structure, tmp_path
             assert metric in bold, f"{metric!r} not bold in {path}"
         assert "Lifted NPS from " not in bold and " within two quarters" not in bold
         assert not [f for f in fact_check.check_docx(path, []) if f.rule == "markdown_leftover"]
+
+
+@needs_node
+def test_build_uses_a_private_data_file_and_cleans_it_up(synthetic_cv, structure, tmp_path, monkeypatch):
+    import tempfile
+    scratch = tmp_path / "scratch"
+    scratch.mkdir()
+    monkeypatch.setattr(tempfile, "tempdir", str(scratch))
+
+    sections = tailor_cv.extract_cv_sections(synthetic_cv, structure)
+    tailored = tailor_cv.normalise_tailored({"professional_summary": "S.", "professional_experience": ["• One"]})
+    tailor_cv.build_cv_documents(sections, structure, tailored, "PM", "Acme", str(tmp_path))
+
+    assert os.listdir(scratch) == [], "temporary CV data file was left behind"
 
 
 @needs_node

@@ -1,6 +1,6 @@
 import os
 
-from utils import read_jd, read_cv_text, get_client, load_prompt, ask_claude_json
+from utils import load_prompt, ask_claude_json
 
 
 def _clean_keyword_list(value):
@@ -39,35 +39,6 @@ def run_keyword_match(jd_text, cv_text, client):
     return normalise_keyword_report(raw)
 
 
-def print_keyword_report(report):
-    score = report["score"]
-
-    print("\n" + "=" * 50)
-    print("   KEYWORD MATCH REPORT")
-    print("=" * 50)
-
-    print(f"\n  Score: {score}/10")
-
-    if score >= 7:
-        print("  ✅  Strong match")
-    elif score >= 4:
-        print("  ⚠️   Moderate match")
-    else:
-        print("  ❌  Weak match")
-
-    print(f"\n  Matching keywords:")
-    for kw in report["matching_keywords"]:
-        print(f"    ✅  {kw}")
-
-    print(f"\n  Missing keywords:")
-    for kw in report["missing_keywords"]:
-        print(f"    ❌  {kw}")
-
-    print(f"\n  Gaps: {report['gaps']}")
-    print(f"\n  Recommendation: {report['recommendation']}")
-    print("=" * 50)
-
-
 def save_keyword_report(report, output_dir):
     score = report["score"]
     lines = [
@@ -94,23 +65,4 @@ def save_keyword_report(report, output_dir):
     path = os.path.join(output_dir, "keyword_match_report.txt")
     with open(path, "w", encoding="utf-8") as f:
         f.write('\n'.join(lines))
-
-    print(f"\n  Report saved to: {path}")
-
-
-def main():
-    print("\nReading job description and CV...")
-    jd_text = read_jd()
-    cv_text = read_cv_text()
-
-    client = get_client()
-
-    print("Running keyword match...")
-    report = run_keyword_match(jd_text, cv_text, client)
-    print_keyword_report(report)
-
-    return report
-
-
-if __name__ == "__main__":
-    main()
+    return path

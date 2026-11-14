@@ -52,7 +52,7 @@ For each role that clears both gates, the tool generates:
 
 All outputs land in a named folder: `cv-outputs/Job Title @ Company/`
 
-In batch mode, timestamped batch summaries are saved to `cv-outputs/batch-summaries/`.
+In batch mode there is no one to ask at each gate, so borderline roles (a BORDERLINE stress test or a keyword score of 4–6) are **held for review**: nothing is generated until you read their reports and approve them. Scores of 0–3 fail. Timestamped batch summaries are saved to `cv-outputs/batch-summaries/`.
 
 ---
 
@@ -68,15 +68,9 @@ Runs as a persistent background service — starts automatically on login, alway
 
 Two tabs:
 - **Single JD** — paste one job description, run the full pipeline interactively, download results inline
-- **Batch Mode** — drag and drop multiple `.txt` JD files, process them all in sequence, download results as they complete
+- **Batch Mode** — drag and drop multiple `.txt` JD files; clear passes get documents straight away, borderline roles are held for your review
 
-### Terminal menu (companion)
-
-```bash
-python3 menu.py
-```
-
-Retained as a fallback interface — same underlying pipeline, 8 menu options.
+Both tabs run the same steps from `pipeline.py`. (The terminal menu and terminal batch mode were retired in v2.0; they remain in the git history.)
 
 ---
 
@@ -84,18 +78,18 @@ Retained as a fallback interface — same underlying pipeline, 8 menu options.
 
 ```
 cv-tailor/                       <- repo (code only)
-├── app.py                       <- Streamlit UI (primary interface)
-├── menu.py                      <- terminal menu (companion interface)
+├── app.py                       <- Streamlit UI
+├── pipeline.py                  <- The pipeline steps and gate rules, shared by both tabs
 ├── stress_test.py               <- Gate 1
 ├── keyword_match.py             <- Gate 2
 ├── tailor_cv.py                 <- CV tailoring engine
 ├── generate_cover_letter.py     <- Cover letter generator
 ├── shape_selector.py            <- Picks a cover letter shape by weighted random choice
-├── batch_processor.py           <- Batch mode orchestrator (terminal)
-├── build_docx.js                <- Word document builder — formatted version (Node.js)
-├── build_docx_ats.js            <- Word document builder — ATS-friendly plain text version (Node.js)
-├── utils.py                     <- Shared utilities
-├── config.py                    <- Path configuration
+├── build_docx.js                <- Word document builder (Node.js); --ats for the plain-text ATS version
+├── fact_check.py                <- Checks generated documents against the fixed factual rules
+├── utils.py                     <- Shared utilities (Claude calls, file names, encodings)
+├── config.py                    <- Paths and model
+├── tests/                       <- Offline test suite (python -m pytest)
 ├── prompt_config.txt            <- CV tailoring prompt (editable)
 ├── cover_letter_prompt.txt      <- Cover letter base prompt: tone, guardrails, rules (editable)
 ├── cover_letter_shapes/         <- One file per cover letter structure (editable, add your own)
@@ -110,14 +104,11 @@ cv-tailor/                       <- repo (code only)
 └── cv_structure.txt             <- CV section headings and types (editable)
 
 cv-inputs/                       <- outside repo (private)
-├── master_cv.docx               <- your master CV goes here
-├── job_description.txt          <- single JD mode (terminal menu)
-└── jds/                         <- batch mode — drop JD files here (terminal menu)
-    └── archive/                 <- processed JDs moved here automatically
+└── master_cv.docx               <- your master CV goes here
 
 cv-outputs/                      <- outside repo
 ├── batch-summaries/             <- timestamped batch summary files
-│   └── batch_summary_YYYY_MM_DD_HH_MM.txt
+│   └── batch_summary_YYYY_MM_DD_HH_MM_SS.txt
 └── Job Title @ Company/         <- one folder per role that passed both gates
     ├── Your_Name_Job_Title_Company.docx
     ├── Your_Name_Job_Title_Company_ATS.docx
@@ -147,17 +138,16 @@ cv-outputs/                      <- outside repo
 git clone https://github.com/subh-c-ydv/cv-tailor.git
 cd cv-tailor
 
-pip3 install anthropic python-docx streamlit
-npm install docx
+pip3 install -r requirements.txt
+npm install
 
-echo 'export ANTHROPIC_API_KEY="your-key-here"' >> ~/.zshrc
-source ~/.zshrc
+cp .env.example .env    # then put your ANTHROPIC_API_KEY in .env
 ```
 
 ### Folder setup
 
 ```bash
-mkdir ../cv-inputs ../cv-outputs ../cv-inputs/jds
+mkdir ../cv-inputs ../cv-outputs
 # Add your master CV to cv-inputs/ named master_cv.docx
 ```
 
@@ -207,26 +197,10 @@ After any code change, restart the running service with:
 
 1. Open the **Batch Mode** tab
 2. Drag and drop multiple `.txt` JD files, or click to browse and select several
-3. Click **▶ Run Batch**
-4. Results display one by one as each JD completes — borderline roles still generate documents and are clearly flagged
-5. A batch summary with pass/fail/borderline counts is saved automatically
-
-### Terminal menu (companion)
-
-```bash
-python3 menu.py
-```
-
-```
-1. Stress Test only
-2. Keyword Match only
-3. Full Run (Stress Test -> Keyword Match -> CV + Cover Letter)
-4. Tailor CV only
-5. Generate Cover Letter only
-6. Both CV + Cover Letter
-7. Batch Mode (process all JDs in cv-inputs/jds/)
-8. Exit
-```
+3. Click **▶ Run Batch** — a progress bar shows each JD as it is checked
+4. Results are grouped into **Generated** (download buttons for each), **Held for review** and **Failed**
+5. For each held role, read its stress test and keyword reports, and click **✅ Generate CV & cover letter** for the ones worth applying to — the stored checks are reused, so approving costs only the CV and letter
+6. A batch summary is saved automatically and updated as you approve held roles. Results stay on screen until you click **🧹 Clear batch results** or reset
 
 ---
 
@@ -332,17 +306,7 @@ The randomness lives in the code, not in the prompt: Claude only ever sees the o
 
 ### Overriding the style
 
-In the Streamlit app, the **Cover letter style** dropdown in the sidebar is set to **Auto** by default. Pick a specific style to force it; this applies to every letter in a batch run too, and Batch Mode shows a warning while a style is forced. The style used is shown under the cover letter, in the batch results, and in the batch summary file.
-
-From the terminal, reading `job_description.txt` and writing to the usual output folder:
-
-```bash
-python3 generate_cover_letter.py                 # chosen automatically
-python3 generate_cover_letter.py story_first     # force a specific shape
-python3 generate_cover_letter.py --list          # show available shapes
-```
-
-(On Windows, use `python` instead of `python3`.) The terminal menu and terminal batch mode also select shapes automatically, but they do not yet carry the role classification through, so each letter costs one extra small classification call.
+In the Streamlit app, the **Cover letter style** dropdown in the sidebar is set to **Auto** by default. Pick a specific style to force it; this applies to every letter in a batch run too (including held roles you approve later), and Batch Mode shows a warning while a style is forced. The style used is shown under the cover letter, in the batch results, and in the batch summary file.
 
 ### Adding your own shape
 
@@ -407,32 +371,34 @@ These are prompt-level controls. Spot-check output periodically, particularly co
 
 ## Document rendering — experience section parsing
 
-Both `build_docx.js` and `build_docx_ats.js` classify each line of the tailored Professional Experience output by counting pipe-separated (`|`) parts, rather than by matching content patterns:
+`build_docx.js` (both the styled and `--ats` versions) classifies each line of the tailored Professional Experience output by counting pipe-separated (`|`) parts, rather than by matching content patterns:
 
 - **3+ parts** (`Title | Company | Date`) → a full job header on one line — bold title, then a subtitle line with company and date, with a spacer inserted before it (except the very first role)
 - **2 parts** (`Company | Date`) → a subtitle-only line, paired with a title-only heading on the line before it (used for the "Earlier Career" block)
 - **No pipe, but date-like** (e.g. `Earlier Career (2002 – 2014)`) → a title-only heading, starts a new block
 - **Starts with `•` or `-`** → a bullet point
 
-This replaced an earlier content-pattern classifier that broke once job header lines consistently contained both a pipe and a date within the same line — every role was being misread as a subtitle-only line, silently dropping bold titles and inter-role spacing. If experience section formatting ever looks wrong again, check `cv_data.json`'s `professional_experience` array first to confirm the data shape, then verify it against this pipe-count logic.
+This replaced an earlier content-pattern classifier that broke once job header lines consistently contained both a pipe and a date within the same line — every role was being misread as a subtitle-only line, silently dropping bold titles and inter-role spacing. If experience section formatting ever looks wrong again, check the `professional_experience` lines Claude returned first to confirm the data shape, then verify them against this pipe-count logic (`tests/test_tailor_cv.py` covers each case).
+
+Key metrics that Claude marks with markdown bold (`**like this**`) are rendered as real bold text; stray markers are dropped.
 
 ---
 
 ## Naming your output files
 
-Output filenames include the candidate name, job title, and company. Both spaces and forward slashes in company names (e.g. "Ambu A/S") are sanitised automatically to avoid invalid file paths. To change the naming convention, update `filename_base` in `tailor_cv.py` and `app.py`.
+Output filenames include the candidate name, job title, and company. Characters that aren't allowed in file names on Windows or macOS (e.g. the "/" in "Ambu A/S", or ":" and "?") are replaced automatically, and long titles are shortened to keep paths under Windows' 260-character limit. To change the naming convention, update `FILENAME_PREFIX` and the naming functions in `utils.py`.
 
 ---
 
 ## Roadmap (v2)
 
-- Apply the tailored tagline and Core Competencies in the Streamlit CV flow — currently only the terminal path (`main()` in `tailor_cv.py`) substitutes them into the CV, while `app.py` builds its CV data from the original header and tables. Planned fix: one shared helper used by both paths
+- Structured outputs (guaranteed-valid JSON from Claude) — not supported by claude-sonnet-4-6; becomes available with a model upgrade, which `fact_check.py` and the test suite now make safe to evaluate
 - Automated cross-check step verifying company-to-achievement attribution before download
 - JD fetch from URL — paste a link, tool fetches the JD automatically
 - LinkedIn workaround via browser extension
 - Settings panel to view and edit prompt config files in the browser
 - Private remote access via Tailscale — reach the background service from other devices without public hosting
-- Hosting on Streamlit Cloud (requires rebuilding file handling — no local filesystem in the cloud, and `build_docx.js`/`build_docx_ats.js` currently depend on Node.js, which Streamlit Cloud does not provide)
+- Hosting on Streamlit Cloud (requires rebuilding file handling — no local filesystem in the cloud, and `build_docx.js` currently depends on Node.js, which Streamlit Cloud does not provide)
 
 ---
 
@@ -447,6 +413,14 @@ Output filenames include the candidate name, job title, and company. Both spaces
 ---
 
 ## Changelog
+
+### v2.0
+- **One shared pipeline** — the steps and gate rules now live once in `pipeline.py`, used by both Streamlit tabs (previously the pipeline was written out four times, which is how the Streamlit tagline bug in v1.9 arose)
+- **Batch mode holds borderline roles for review** — a BORDERLINE stress test or a keyword score of 4–6 no longer generates documents automatically. Held roles are listed with their reports and a **Generate CV & cover letter** button; approving reuses the stored checks and role details, so nothing is paid for twice. Batch results now stay on screen across clicks, and the summary file groups roles into Generated / Held for review / Failed and is updated as you approve
+- **Terminal menu and terminal batch mode retired** (`menu.py`, `batch_processor.py`, and the per-module `main()` entry points, including `job_description.txt` and `cv-inputs/jds/`) — Streamlit covers both uses; the code remains in the git history
+- **One Word builder** — `build_docx_ats.js` merged into `build_docx.js` behind an `--ats` flag
+- **No shared `cv_data.json`** — each CV build passes its data to Node through its own temporary file, removed afterwards
+- Single JD mode now also saves `keyword_match_report.txt` into the output folder, as batch mode always did
 
 ### v1.9
 - **Fixed literal `**` markers in every tailored CV** — the prompt asks Claude to bold key metrics with markdown, but `build_docx.js` / `build_docx_ats.js` printed the asterisks as text (10–14 pairs per CV since v1.6). Both builders, and the cover letter builder, now render them as real bold runs
@@ -553,7 +527,7 @@ The app itself is plain Python (Streamlit) + two Node.js scripts for `.docx` gen
 4. **Set your API key** as an environment variable named `ANTHROPIC_API_KEY` — there's no `.env` file in this codebase; `utils.py` reads it straight from `os.environ`.
    - macOS/Linux: add `export ANTHROPIC_API_KEY="your-key-here"` to `~/.zshrc` (or `~/.bashrc`) and `source` it
    - Windows: set it as a User Environment Variable via System Properties, or `$env:ANTHROPIC_API_KEY="your-key-here"` in your PowerShell profile
-5. **Create `cv-inputs/` and `cv-outputs/`** one level above the repo folder (see `config.py` for the exact paths it expects) — copy over `master_cv.docx` and `job_description.txt` from your current machine.
+5. **Create `cv-inputs/` and `cv-outputs/`** one level above the repo folder (see `config.py` for the exact paths it expects) — copy over `master_cv.docx` from your current machine.
 6. **Run it:**
    ```bash
    streamlit run app.py

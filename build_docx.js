@@ -2,7 +2,19 @@ const { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell,
         AlignmentType, WidthType, BorderStyle, ShadingType } = require('docx');
 const fs = require('fs');
 
-const data = JSON.parse(fs.readFileSync('cv_data.json', 'utf8'));
+// Usage: node build_docx.js <cv-data.json> [--ats]
+//   default: the styled CV (tables, shading)       -> <filename>.docx
+//   --ats:   a plain-text, table-free version that  -> <filename>_ATS.docx
+//            applicant tracking systems parse reliably
+const args = process.argv.slice(2);
+const ATS = args.includes('--ats');
+const dataPath = args.find(a => !a.startsWith('--'));
+if (!dataPath) {
+    console.error('Usage: node build_docx.js <cv-data.json> [--ats]');
+    process.exit(2);
+}
+
+const data = JSON.parse(fs.readFileSync(dataPath, 'utf8'));
 const structure = data.structure;
 
 const DARK = "1F2D3D";
@@ -107,6 +119,35 @@ function twoColTable(rows) {
             ]
         }))
     });
+}
+
+// ATS version of a table section — plain paragraphs, no tables
+function renderTableAsText(rows, heading) {
+    const children = [];
+
+    // Core Competencies — just the names, two per line
+    if (heading.toLowerCase().includes("competenc")) {
+        const names = rows.map(row => row[0] || '').filter(n => n.trim());
+        for (let i = 0; i < names.length; i += 2) {
+            const line = names[i + 1]
+                ? `${names[i]}   |   ${names[i + 1]}`
+                : names[i];
+            children.push(para(line, { size: 17, spaceAfter: 40 }));
+        }
+        return children;
+    }
+
+    // All other table sections — label bold, description on next line
+    rows.forEach(row => {
+        if (row[0]) {
+            children.push(para(row[0], { bold: true, size: 17, spaceAfter: 20 }));
+        }
+        if (row[1]) {
+            children.push(para(row[1], { size: 17, spaceAfter: 40 }));
+        }
+    });
+
+    return children;
 }
 
 // --- Experience line parsing ---
@@ -267,7 +308,11 @@ sectionOrder.forEach(heading => {
 
     } else if (isTable && data.tables[key]) {
         children.push(sectionHeading(heading));
-        children.push(twoColTable(data.tables[key]));
+        if (ATS) {
+            renderTableAsText(data.tables[key], heading).forEach(c => children.push(c));
+        } else {
+            children.push(twoColTable(data.tables[key]));
+        }
         children.push(spacer());
     }
 });
@@ -286,7 +331,10 @@ const doc = new Document({
 });
 
 Packer.toBuffer(doc).then(buffer => {
-    const filename = `${data.filename}.docx`;
+    const filename = `${data.filename}${ATS ? '_ATS' : ''}.docx`;
     fs.writeFileSync(filename, buffer);
-    console.log(`Saved: ${filename}`);
+    console.log(`Saved${ATS ? ' ATS version' : ''}: ${filename}`);
+}).catch(err => {
+    console.error(`Could not build the document: ${err.message || err}`);
+    process.exit(1);
 });
