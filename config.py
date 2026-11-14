@@ -18,8 +18,9 @@ BASE_DIR = os.path.dirname(APP_DIR)
 INPUTS_DIR = os.path.join(BASE_DIR, "cv-inputs")
 OUTPUTS_DIR = os.path.join(BASE_DIR, "cv-outputs")
 
-# Input files
+# Input files (private, outside the repo)
 CV_PATH = os.path.join(INPUTS_DIR, "master_cv.docx")
+PROFILE_PATH = os.path.join(INPUTS_DIR, "profile.toml")  # see profile.example.toml
 
 # Claude model used for every step of the pipeline.
 CLAUDE_MODEL = "claude-sonnet-4-6"

@@ -12,13 +12,29 @@ REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, REPO_ROOT)
 
 import anthropic  # noqa: E402
+import config  # noqa: E402
 import shape_selector  # noqa: E402
 import utils  # noqa: E402
+
+TEST_PROFILE = '''
+name = "Jane Example"
+contact_line = "+45 00 00 00 00  ·  jane@example.com  ·  Copenhagen"
+home_base = "Testby Station"
+min_salary = "12,345 DKK per month"
+candidate_profile = """
+- TEST PROFILE LINE: based in Testby
+"""
+'''
 
 
 @pytest.fixture(autouse=True)
 def isolate(tmp_path, monkeypatch):
-    """Keep every test away from the network and from real output files."""
+    """Keep every test away from the network, from real output files and
+    from your real personal profile."""
+    profile = tmp_path / "profile.toml"
+    profile.write_text(TEST_PROFILE, encoding="utf-8")
+    monkeypatch.setattr(config, "PROFILE_PATH", str(profile))
+
     outputs = tmp_path / "cv-outputs"
     outputs.mkdir()
     monkeypatch.setattr(utils, "OUTPUTS_DIR", str(outputs))

@@ -12,7 +12,7 @@ EXPECTED_PLACEHOLDERS = {
                           "experience_text", "missing_keywords", "gaps"},
     "cover_letter_prompt.txt": {"jd_text", "cv_text", "job_title", "company_name",
                                 "missing_keywords", "gaps", "shape_instructions"},
-    "stress_test_prompt.txt": {"jd_text"},
+    "stress_test_prompt.txt": {"jd_text", "candidate_profile", "home_base", "min_salary"},
     "keyword_match_prompt.txt": {"jd_text", "cv_text"},
 }
 

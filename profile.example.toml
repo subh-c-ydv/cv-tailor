@@ -1,0 +1,30 @@
+# CV Tailor — personal profile (TEMPLATE)
+#
+# Copy this file to cv-inputs/profile.toml (next to master_cv.docx, outside
+# the repository) and replace the example values with your own. The real file
+# is never committed, so your contact details, location, salary and
+# residency status stay private.
+
+# Shown at the top of every cover letter and in its sign-off
+name = "Jane Example"
+contact_line = "+45 00 00 00 00  ·  jane@example.com  ·  linkedin.com/in/janeexample  ·  Copenhagen, Denmark"
+
+# Start of every output file name. Optional: defaults to first and last name
+# ("Jane_Example").
+# filename_prefix = "Jane_Example"
+
+# Used inside the stress test rules
+home_base = "Vesterbro, Copenhagen"      # roles must be within ~60 minutes of here by public transport
+min_salary = "60,000 DKK per month"      # stated salary bands at or below this fail
+
+# The CANDIDATE PROFILE section of the stress test prompt: who you are and
+# what you are looking for. One bullet per fact.
+candidate_profile = """
+- Based in Vesterbro, Copenhagen, Denmark — able to commute up to approximately 60 minutes by train/metro/bus combination
+- Holds a work permit that allows employment in Denmark
+- Has a Bachelor's degree in Engineering (no Masters)
+- Seeking senior, full-time, permanent roles
+- Minimum base salary expectation: 60,000 DKK per month (excluding pension, bonuses, etc.)
+- Full professional proficiency in English; basic Danish
+- Focus is on software delivery and delivery-adjacent roles
+"""

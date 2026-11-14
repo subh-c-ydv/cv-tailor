@@ -3,16 +3,7 @@ You are acting as a strict but fair job application filter for a senior professi
 Analyse the job description below against the following criteria and return a structured stress test report.
 
 CANDIDATE PROFILE:
-- Based in Ørestad, Copenhagen, Denmark — able to commute up to approximately 60 minutes by train/metro/bus combination
-- Holds a work permit that requires employer sponsorship
-- Has applied for a permanent residency that is likely to be approved by mid 2027
-- Has a Bachelor's degree in Engineering from University of Mumbai, India (no Masters)
-- Continuous, uninterrupted resident in Denmark since 2018 (8+ years) — satisfies typical 5-7 year continuous-residence security clearance eligibility windows even though country of origin and earlier career (pre-2018) was in India and the UK. Do not infer recent immigration to Denmark from country of origin, nationality, or where a degree was obtained — residence duration is a separate fact, stated here explicitly
-- Seeking mid-level, senior, full-time, permanent roles
-- Minimum base salary expectation: 65,000 DKK per month (excluding pension, bonuses, etc.)
-- Full professional proficiency in English (primary working language throughout career); native Hindi and Marathi; basic Danish (PD2 completed)
-- Best suited for international companies with an internationally diverse workforce with a global presence
-- Focus is on software delivery and delivery-adjacent roles (programme/project/portfolio delivery, agile delivery leadership, delivery enablement, PMO). Not seeking pure-strategy, learning & development, or standalone process-excellence individual-contributor roles.
+{candidate_profile}
 
 JOB DESCRIPTION:
 {jd_text}
@@ -23,13 +14,13 @@ Evaluate against these parameters:
 
 2. WORK PERMIT: Does the JD explicitly state no sponsorship or that candidates must already hold a valid work permit? If yes → FAIL. If not mentioned → PASS.
 
-3. LOCATION: Is the role reachable by public transport (train, metro, or S-train) within approximately 60 minutes from Ørestad, Copenhagen? Consider known commuter towns and suburbs within the Greater Copenhagen area (e.g. Ballerup, Lyngby, Hellerup, Valby, Glostrup, Roskilde, Taastrup, Hedehusene, Hørsholm) as PASS if within that travel time. If the role is clearly beyond a 60-minute commute (e.g. Odense, Aarhus, Aalborg, Vejle, Esbjerg, Horsens) → FAIL. If not mentioned → PASS.
+3. LOCATION: Is the role reachable by public transport (train, metro, or S-train) within approximately 60 minutes from {home_base}? Consider known commuter towns and suburbs within the Greater Copenhagen area (e.g. Ballerup, Lyngby, Hellerup, Valby, Glostrup, Roskilde, Taastrup, Hedehusene, Hørsholm) as PASS if within that travel time. If the role is clearly beyond a 60-minute commute (e.g. Odense, Aarhus, Aalborg, Vejle, Esbjerg, Horsens) → FAIL. If not mentioned → PASS.
 
 4. EDUCATION: Does the role explicitly require a Masters degree as a non-negotiable must-have? If yes → FAIL. If Masters is preferred but not required → FLAG. If Bachelor's is sufficient or not mentioned → PASS.
 
 5. CONTRACT TYPE: Is this a part-time role, maternity cover, or fixed-term contract? If yes → FAIL. If permanent full-time or not mentioned → PASS.
 
-6. SALARY: Is a salary band explicitly stated at or below 65,000 DKK per month (base, excluding pension and bonus)? If yes → FAIL. If a band is stated clearly above that → PASS. If not mentioned → PASS.
+6. SALARY: Is a salary band explicitly stated at or below {min_salary} (base, excluding pension and bonus)? If yes → FAIL. If a band is stated clearly above that → PASS. If not mentioned → PASS.
 
 7. SENIORITY: Does the seniority level match a senior professional with 20+ years of experience? If clearly too junior (e.g. graduate, junior, associate level) → FLAG. If clearly too senior (e.g. C-suite, VP, Director-of-Directors) → FLAG. If good match or ambiguous → PASS.
 

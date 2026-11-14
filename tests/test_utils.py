@@ -28,8 +28,8 @@ def test_safe_filename_truncates():
 
 def test_normal_names_are_unchanged():
     """Existing output folders keep matching for ordinary titles."""
-    assert utils.cv_filename_base("Senior PM", "Maersk") == "Subhash_Yadav_Senior_PM_Maersk"
-    assert utils.cover_letter_filename("Senior PM", "Maersk") == "Subhash_Yadav_Cover_Letter_Senior_PM_Maersk.docx"
+    assert utils.cv_filename_base("Senior PM", "Maersk") == "Jane_Example_Senior_PM_Maersk"
+    assert utils.cover_letter_filename("Senior PM", "Maersk") == "Jane_Example_Cover_Letter_Senior_PM_Maersk.docx"
 
 
 def test_make_output_dir_creates_safe_folder(isolate):
@@ -52,7 +52,7 @@ def test_worst_case_path_stays_under_windows_limit():
 
 def test_prompts_are_read_as_utf8():
     assert "Møller" in utils.load_prompt("prompt_config.txt")
-    assert "Ørestad" in utils.load_prompt("stress_test_prompt.txt")
+    assert "Hørsholm" in utils.load_prompt("stress_test_prompt.txt")
 
 
 @pytest.mark.parametrize("data, expected", [

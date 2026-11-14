@@ -7,6 +7,7 @@ import subprocess
 import anthropic
 from docx import Document
 
+import candidate_profile
 from config import APP_DIR, CV_PATH, OUTPUTS_DIR, CLAUDE_MODEL
 
 # Kept under its old name for existing imports (shape_selector, generate_cover_letter).
@@ -28,8 +29,11 @@ DEFAULT_AGENCY_POSTED = False
 UNKNOWN_TITLE = "Unknown Role"
 UNKNOWN_COMPANY = "Unknown Company"
 
-# Prefix for every generated document's file name.
-FILENAME_PREFIX = "Subhash_Yadav"
+
+def filename_prefix():
+    """Start of every generated document's file name, from the private
+    profile (cv-inputs/profile.toml), e.g. "Jane_Example"."""
+    return candidate_profile.load_profile()["filename_prefix"]
 
 
 # ---------------------------------------------------------------------------
@@ -116,12 +120,12 @@ def make_output_dir(job_title, company_name):
 def cv_filename_base(job_title, company_name):
     """CV file name without extension (the builders add .docx / _ATS.docx)."""
     title, company = _safe_title_and_company(job_title, company_name)
-    return f"{FILENAME_PREFIX}_{title}_{company}".replace(" ", "_")
+    return f"{filename_prefix()}_{title}_{company}".replace(" ", "_")
 
 
 def cover_letter_filename(job_title, company_name):
     title, company = _safe_title_and_company(job_title, company_name)
-    return f"{FILENAME_PREFIX}_Cover_Letter_{title}_{company}.docx".replace(" ", "_")
+    return f"{filename_prefix()}_Cover_Letter_{title}_{company}.docx".replace(" ", "_")
 
 
 # ---------------------------------------------------------------------------

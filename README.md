@@ -30,10 +30,10 @@ Named output folder with all documents
 
 1. Remote policy — no remote-only roles
 2. Work permit — must not explicitly exclude sponsorship
-3. Location — reachable by public transport (train/metro/bus) within ~60 minutes from Ørestad, Copenhagen (covers Greater Copenhagen commuter towns; explicitly excludes Odense, Aarhus, Aalborg, Vejle, Esbjerg, Horsens and similar)
+3. Location — reachable by public transport (train/metro/bus) within ~60 minutes from your home base (set in your profile; covers Greater Copenhagen commuter towns; explicitly excludes Odense, Aarhus, Aalborg, Vejle, Esbjerg, Horsens and similar)
 4. Education — rules out roles requiring a Masters degree as a must-have
 5. Contract type — no part-time or maternity cover
-6. Salary — rules out roles with a stated base salary band at or below 65,000 DKK/month (excluding pension and bonus)
+6. Salary — rules out roles with a stated base salary band at or below your minimum (set in your profile; base salary, excluding pension and bonus)
 7. Seniority — flags junior or overly senior roles
 8. JD language — rules out Danish-only job descriptions
 9. Language requirement — rules out roles requiring native Danish or other non-English languages
@@ -87,6 +87,8 @@ cv-tailor/                       <- repo (code only)
 ├── shape_selector.py            <- Picks a cover letter shape by weighted random choice
 ├── build_docx.js                <- Word document builder (Node.js); --ats for the plain-text ATS version
 ├── fact_check.py                <- Checks generated documents against the fixed factual rules
+├── candidate_profile.py         <- Loads your private profile (cv-inputs/profile.toml)
+├── profile.example.toml         <- Template for that profile
 ├── utils.py                     <- Shared utilities (Claude calls, file names, encodings)
 ├── config.py                    <- Paths and model
 ├── tests/                       <- Offline test suite (python -m pytest)
@@ -104,7 +106,8 @@ cv-tailor/                       <- repo (code only)
 └── cv_structure.txt             <- CV section headings and types (editable)
 
 cv-inputs/                       <- outside repo (private)
-└── master_cv.docx               <- your master CV goes here
+├── master_cv.docx               <- your master CV goes here
+└── profile.toml                 <- your personal details (copy of profile.example.toml)
 
 cv-outputs/                      <- outside repo
 ├── batch-summaries/             <- timestamped batch summary files
@@ -149,7 +152,10 @@ cp .env.example .env    # then put your ANTHROPIC_API_KEY in .env
 ```bash
 mkdir ../cv-inputs ../cv-outputs
 # Add your master CV to cv-inputs/ named master_cv.docx
+cp profile.example.toml ../cv-inputs/profile.toml   # then fill in your own details
 ```
+
+`cv-inputs/profile.toml` holds your personal details — name and contact line for the cover letter, the file-name prefix, and the stress test's candidate profile, home base and minimum salary. It lives outside the repository so none of it is ever committed; the test suite fails if a phone number, email address or any value from your profile appears in the repository.
 
 ### Running as a persistent background service (macOS)
 
@@ -238,7 +244,8 @@ All prompts and structure files are plain text and can be edited without touchin
 | `cover_letter_prompt.txt` | Shared rules for every cover letter — tone, humility calibration, attribution integrity, fixed factual rules, forward-looking rule, variety guardrails, echo-prevention, length and closing |
 | `cover_letter_shapes/*.txt` | One file per cover letter structure (paragraph-by-paragraph instructions). Add a new `.txt` file to add a new shape |
 | `cover_letter_weights.txt` | Which shapes are eligible for which kind of role (seniority, how specific the JD is, agency-posted or not) and how likely each is |
-| `stress_test_prompt.txt` | Stress test parameters and scoring logic |
+| `stress_test_prompt.txt` | Stress test parameters and scoring logic (your candidate profile, home base and minimum salary are filled in from `cv-inputs/profile.toml`) |
+| `cv-inputs/profile.toml` | Your personal details — private, outside the repo (template: `profile.example.toml`) |
 | `keyword_match_prompt.txt` | How Claude scores keyword alignment |
 | `cv_structure.txt` | CV section headings and types (narrative or table) |
 
@@ -414,6 +421,10 @@ Output filenames include the candidate name, job title, and company. Characters 
 
 ## Changelog
 
+### v2.1
+- **Personal details moved out of the repository** into `cv-inputs/profile.toml` (template: `profile.example.toml`): name, phone, email and LinkedIn for the cover letter, the output file-name prefix, and the stress test's candidate profile (residency, work permit, degree, languages, salary floor, home base). `stress_test_prompt.txt` now uses `{candidate_profile}`, `{home_base}` and `{min_salary}` placeholders; the prompt sent to Claude is unchanged
+- New privacy guard tests fail if a phone number, email address, or any value from your profile appears in a file that could be committed
+
 ### v2.0
 - **One shared pipeline** — the steps and gate rules now live once in `pipeline.py`, used by both Streamlit tabs (previously the pipeline was written out four times, which is how the Streamlit tagline bug in v1.9 arose)
 - **Batch mode holds borderline roles for review** — a BORDERLINE stress test or a keyword score of 4–6 no longer generates documents automatically. Held roles are listed with their reports and a **Generate CV & cover letter** button; approving reuses the stored checks and role details, so nothing is paid for twice. Batch results now stay on screen across clicks, and the summary file groups roles into Generated / Held for review / Failed and is updated as you approve
@@ -453,13 +464,13 @@ Output filenames include the candidate name, job title, and company. Characters 
 - Core Competencies table now tailored per JD — the full pool of competency rows (previously always shown in full) is passed to the prompt via `format_competencies_for_prompt()`, and Claude selects the 6-8 most relevant, reordered, and reproduced exactly rather than reworded
 - Metric-name exactness rule added to ATTRIBUTION INTEGRITY in both `prompt_config.txt` and `cover_letter_prompt.txt` — fixes a real fabrication caught in testing where a cover letter invented "defect escape rates" instead of the master CV's actual "defect slippage"
 - Cover letter closing paragraph tightened from "2 sentences" to "EXACTLY 1 sentence," with a named anti-pattern against stacking two eager-sounding sentences (e.g. "I'd be glad to speak further" + "happy to come in whenever works") into one overly keen close
-- Stress test residency-duration fix — `stress_test_prompt.txt`'s CANDIDATE PROFILE now explicitly states continuous Denmark residence since 2018 (8+ years), with an explicit instruction not to infer recent country-of-origin residence from the candidate's Bachelor's degree location. Fixes a false FAIL on a security-clearance residency requirement that was incorrectly triggered by degree-country inference
+- Stress test residency-duration fix — the candidate profile now states residence duration explicitly, with an instruction not to infer residence from where a degree was obtained. Fixes a false FAIL on a security-clearance residency requirement
 
 ### v1.5
 - Stress test expanded from 11 to 12 parameters — added Role-Type Fit, which flags pure-strategy, L&D, and standalone process-excellence individual-contributor roles outside the candidate's actual delivery-focused target
 - Location parameter widened — bus added as a valid commute mode alongside train/metro, more commuter towns explicitly listed as in-range, more distant cities explicitly listed as out-of-range
 - Salary parameter clarified as base salary only, excluding pension and bonus
-- Candidate profile expanded with permanent residency timeline, explicit language proficiency detail, and an explicit statement of target role types (delivery and delivery-adjacent only)
+- Candidate profile expanded with residency, language proficiency and target role type detail
 - Echo-prevention rule added to both the CV tailoring and cover letter prompts — Claude no longer mirrors the JD's own distinctive phrasing back to the reader in either the summary or the letter, reducing the "parroting the posting" tell
 - Fixed Factual Rules block added to both prompts — a small set of specific, non-negotiable facts (exact tenure dates, precise seniority wording, named vendors only, specific metric phrasing, explicit exclusions) that must never drift regardless of how the surrounding text is tailored
 - Prior-contact rule added to the cover letter prompt — a previous interview or rejection with the same hiring manager is not unprompted resurfaced if it is not actively remembered
@@ -475,7 +486,7 @@ Output filenames include the candidate name, job title, and company. Characters 
 
 ### v1.3
 - ATS-friendly CV variant added — table sections rendered as plain text for reliable parsing by SuccessFactors, Workday, and similar systems; generated alongside the formatted CV on every successful run
-- Stress test location parameter changed from a strict Capital Region boundary to a commute-based radius (~60 minutes by train/metro from Ørestad), correctly including commuter towns like Ballerup
+- Stress test location parameter changed from a strict Capital Region boundary to a commute-based radius (~60 minutes by train/metro from the candidate's home base), correctly including commuter towns like Ballerup
 - Cover letter humility calibration — reduced self-promotional language, added acknowledgement pattern for prior employment at the same company
 - Attribution integrity guardrails added to both CV tailoring and cover letter prompts — achievements must stay attributed to the correct employer, preventing cross-company misattribution
 - Fixed filename generation bug where company names containing "/" (e.g. "Ambu A/S") broke file paths during save

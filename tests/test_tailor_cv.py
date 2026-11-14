@@ -147,7 +147,7 @@ def test_build_cv_documents_uses_tailored_content(synthetic_cv, structure, tmp_p
 
     paths = tailor_cv.build_cv_documents(sections, structure, tailored, "Lead: Data/AI?", "Acme", str(out))
 
-    assert paths["filename_base"] == "Subhash_Yadav_Lead-_Data-AI-_Acme"
+    assert paths["filename_base"] == "Jane_Example_Lead-_Data-AI-_Acme"
     styled = _docx_paragraphs(paths["cv_path"])
 
     # Header: name kept, tagline replaced, contact line kept

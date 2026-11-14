@@ -1,3 +1,4 @@
+import candidate_profile
 from utils import load_prompt, ask_claude_json
 
 OVERALL_RESULTS = ("PASS", "FAIL", "BORDERLINE")
@@ -35,6 +36,12 @@ def normalise_stress_report(raw):
 
 
 def run_stress_test(jd_text, client):
-    prompt = load_prompt("stress_test_prompt.txt").format(jd_text=jd_text)
+    profile = candidate_profile.load_profile()
+    prompt = load_prompt("stress_test_prompt.txt").format(
+        jd_text=jd_text,
+        candidate_profile=profile["candidate_profile"],
+        home_base=profile["home_base"],
+        min_salary=profile["min_salary"],
+    )
     raw = ask_claude_json(client, prompt, max_tokens=2000, what="stress test")
     return normalise_stress_report(raw)
