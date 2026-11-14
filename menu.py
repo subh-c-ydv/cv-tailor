@@ -1,43 +1,22 @@
-import os
-import anthropic
-from utils import read_jd, read_cv_text, extract_job_details
-from config import OUTPUTS_DIR, JD_PATH
+import traceback
+
+from utils import read_jd, read_cv_text, extract_job_details, get_client, make_output_dir
 
 
 def get_current_jd_preview():
     """Show first 3 non-empty lines from job_description.txt"""
     try:
-        with open(JD_PATH, "r") as f:
-            content = f.read().strip()
-
-        if not content:
-            return "Empty — paste a JD to get started"
-
-        lines = [l.strip() for l in content.split('\n') if l.strip()]
-        preview = " | ".join(lines[:3])
-        return preview[:100] + "..." if len(preview) > 100 else preview
-
+        content = read_jd().strip()
     except FileNotFoundError:
         return "File not found — create cv-inputs/job_description.txt"
 
-        lines = [l.strip() for l in content.split('\n') if l.strip()]
+    if not content:
+        return "Empty — paste a JD to get started"
 
-        # Try to find a line that looks like a job title or company name
-        for line in lines[:20]:
-            lower = line.lower()
-            # Skip short lines and boilerplate
-            if len(line) < 5:
-                continue
-            if any(lower.startswith(phrase) for phrase in skip_phrases):
-                continue
-            # Skip lines that are just URLs or emails
-            if line.startswith("http") or "@" in line:
-                continue
-            # This line looks meaningful — use it
-            return line[:80] + "..." if len(line) > 80 else line
+    lines = [l.strip() for l in content.split('\n') if l.strip()]
+    preview = " | ".join(lines[:3])
+    return preview[:100] + "..." if len(preview) > 100 else preview
 
-        # Fallback — just return the first non-empty line truncated
-        return lines[0][:80] + "..." if lines else "Empty"
 
 def print_header():
     print("\n" + "=" * 50)
@@ -96,8 +75,8 @@ def run_full_pipeline(jd_text, cv_text, client):
     print_keyword_report(keyword_report)
 
     score = keyword_report["score"]
-    missing_keywords = keyword_report.get("missing_keywords", [])
-    gaps = keyword_report.get("gaps", "")
+    missing_keywords = keyword_report["missing_keywords"]
+    gaps = keyword_report["gaps"]
 
     if score <= 3:
         if not ask_proceed(f"Keyword match score is low ({score}/10)."):
@@ -116,9 +95,7 @@ def run_full_pipeline(jd_text, cv_text, client):
     company_name = job_details["company_name"]
     print(f"  → {job_title} at {company_name}")
 
-    folder_name = f"{job_title} @ {company_name}".replace("/", "-")
-    output_dir = os.path.join(OUTPUTS_DIR, folder_name)
-    os.makedirs(output_dir, exist_ok=True)
+    output_dir = make_output_dir(job_title, company_name)
 
     save_keyword_report(keyword_report, output_dir)
 
@@ -139,74 +116,89 @@ def run_full_pipeline(jd_text, cv_text, client):
         output_dir=output_dir,
         missing_keywords=missing_keywords,
         gaps=gaps,
-        jd_text=jd_text
+        jd_text=jd_text,
+        job_details=job_details
     )
 
     print(f"\n✅  All files saved to: {output_dir}")
 
 
+def run_choice(choice):
+    """Run one menu option. Returns False when the user chose to exit."""
+    if choice == "1":
+        print("\n--- Stress Test ---")
+        from stress_test import main as stress_main
+        stress_main()
+
+    elif choice == "2":
+        print("\n--- Keyword Match ---")
+        from keyword_match import main as keyword_main
+        keyword_main()
+
+    elif choice == "3":
+        print("\n--- Full Run ---")
+        run_full_pipeline(read_jd(), read_cv_text(), get_client())
+
+    elif choice == "4":
+        print("\n--- Tailoring CV ---")
+        from tailor_cv import main as tailor_main
+        tailor_main()
+
+    elif choice == "5":
+        print("\n--- Generating Cover Letter ---")
+        from generate_cover_letter import main as cover_main
+        cover_main()
+
+    elif choice == "6":
+        print("\n--- CV + Cover Letter ---")
+        from tailor_cv import main as tailor_main
+        from generate_cover_letter import main as cover_main
+        job_title, company_name, output_dir = tailor_main()
+        cover_main(
+            job_title=job_title,
+            company_name=company_name,
+            output_dir=output_dir
+        )
+        print(f"\n✅  All files saved to: {output_dir}")
+
+    elif choice == "7":
+        print("\n--- Batch Mode ---")
+        from batch_processor import run_batch
+        run_batch()
+
+    elif choice == "8":
+        print("\nGood luck with the applications, Subhash. Closing.\n")
+        return False
+
+    else:
+        print("\n  Please enter 1 through 8.")
+
+    return True
+
+
 def main():
     print_header()
 
-    while True:
-        print_menu()
-        choice = input("Enter your choice (1-8): ").strip()
+    try:
+        while True:
+            print_menu()
+            choice = input("Enter your choice (1-8): ").strip()
 
-        if choice == "1":
-            print("\n--- Stress Test ---")
-            from stress_test import main as stress_main
-            stress_main()
+            # A failure in one option (API error, malformed reply, locked
+            # file) is reported and the menu comes back, instead of the
+            # whole program exiting.
+            try:
+                if not run_choice(choice):
+                    break
+            except Exception as e:
+                print(f"\n❌  Something went wrong: {e}")
+                print("\n--- Technical details ---")
+                traceback.print_exc()
 
-        elif choice == "2":
-            print("\n--- Keyword Match ---")
-            from keyword_match import main as keyword_main
-            keyword_main()
-
-        elif choice == "3":
-            print("\n--- Full Run ---")
-            jd_text = read_jd()
-            cv_text = read_cv_text()
-            client = anthropic.Anthropic(
-                api_key=os.environ.get("ANTHROPIC_API_KEY")
-            )
-            run_full_pipeline(jd_text, cv_text, client)
-
-        elif choice == "4":
-            print("\n--- Tailoring CV ---")
-            from tailor_cv import main as tailor_main
-            tailor_main()
-
-        elif choice == "5":
-            print("\n--- Generating Cover Letter ---")
-            from generate_cover_letter import main as cover_main
-            cover_main()
-
-        elif choice == "6":
-            print("\n--- CV + Cover Letter ---")
-            from tailor_cv import main as tailor_main
-            from generate_cover_letter import main as cover_main
-            job_title, company_name, output_dir = tailor_main()
-            cover_main(
-                job_title=job_title,
-                company_name=company_name,
-                output_dir=output_dir
-            )
-            print(f"\n✅  All files saved to: {output_dir}")
-
-        elif choice == "7":
-            print("\n--- Batch Mode ---")
-            from batch_processor import run_batch
-            run_batch()
-
-        elif choice == "8":
-            print("\nGood luck with the applications, Subhash. Closing.\n")
-            break
-
-        else:
-            print("\n  Please enter 1 through 8.")
-
-        print("\n" + "-" * 50)
-        input("Press Enter to return to the menu...")
+            print("\n" + "-" * 50)
+            input("Press Enter to return to the menu...")
+    except (KeyboardInterrupt, EOFError):
+        print("\n\nClosing.\n")
 
 
 if __name__ == "__main__":

@@ -1,17 +1,15 @@
 import os
 import shutil
-import anthropic
 from datetime import datetime
-from config import OUTPUTS_DIR
-from utils import extract_job_details
+from config import OUTPUTS_DIR, JDS_DIR
+from utils import extract_job_details, get_client, read_jd_text_file, make_output_dir
 
 
 def get_jd_files():
     """Scan cv-inputs/jds/ for all .txt files"""
-    jds_folder = os.path.join(os.path.dirname(__file__), "..", "cv-inputs", "jds")
-    os.makedirs(jds_folder, exist_ok=True)
-    files = [f for f in os.listdir(jds_folder) if f.endswith(".txt")]
-    return jds_folder, sorted(files)
+    os.makedirs(JDS_DIR, exist_ok=True)
+    files = [f for f in os.listdir(JDS_DIR) if f.endswith(".txt")]
+    return JDS_DIR, sorted(files)
 
 
 def archive_jd_file(jds_folder, filename):
@@ -28,13 +26,16 @@ def archive_jd_file(jds_folder, filename):
         name, ext = os.path.splitext(filename)
         dst = os.path.join(archive_folder, f"{name}_{timestamp}{ext}")
 
-    shutil.move(src, dst)
-    print(f"  Archived: {filename}")
+    try:
+        shutil.move(src, dst)
+        print(f"  Archived: {filename}")
+    except OSError as e:
+        # e.g. OneDrive still has the file locked. Not worth stopping the batch.
+        print(f"  ⚠️  Could not archive {filename}: {e}")
 
 
 def read_jd_file(jds_folder, filename):
-    with open(os.path.join(jds_folder, filename), "r") as f:
-        return f.read()
+    return read_jd_text_file(os.path.join(jds_folder, filename))
 
 
 def process_single_jd(jd_text, cv_text, client):
@@ -77,8 +78,8 @@ def process_single_jd(jd_text, cv_text, client):
     print_keyword_report(keyword_report)
 
     score = keyword_report["score"]
-    missing_keywords = keyword_report.get("missing_keywords", [])
-    gaps = keyword_report.get("gaps", "")
+    missing_keywords = keyword_report["missing_keywords"]
+    gaps = keyword_report["gaps"]
     result["keyword_score"] = score
     result["missing_keywords"] = missing_keywords
     result["gaps"] = gaps
@@ -101,9 +102,7 @@ def process_single_jd(jd_text, cv_text, client):
     result["company_name"] = company_name
     print(f"\n  → {job_title} at {company_name}")
 
-    folder_name = f"{job_title} @ {company_name}".replace("/", "-")
-    output_dir = os.path.join(OUTPUTS_DIR, folder_name)
-    os.makedirs(output_dir, exist_ok=True)
+    output_dir = make_output_dir(job_title, company_name)
     result["output_dir"] = output_dir
 
     save_keyword_report(keyword_report, output_dir)
@@ -125,7 +124,8 @@ def process_single_jd(jd_text, cv_text, client):
         output_dir=output_dir,
         missing_keywords=missing_keywords,
         gaps=gaps,
-        jd_text=jd_text
+        jd_text=jd_text,
+        job_details=job_details
     )
 
     result["status"] = "PASS"
@@ -160,7 +160,7 @@ def process_borderline_interactively(borderline_results, cv_text, client):
     selection = input("> ").strip()
 
     try:
-        indices = [int(x.strip()) - 1 for x in selection.split(",")]
+        indices = [int(x.strip()) - 1 for x in selection.split(",") if x.strip()]
     except ValueError:
         print("\nInvalid selection. Skipping.")
         return
@@ -185,52 +185,50 @@ def process_borderline_interactively(borderline_results, cv_text, client):
             print(f"\n  Skipping {label}.")
             continue
 
-        job_title = r["job_title"]
-        company_name = r["company_name"]
-
-        if job_title == "Unknown":
+        # One failing role shouldn't stop the others from being processed.
+        try:
             job_details = extract_job_details(jd_text, client)
             job_title = job_details["job_title"]
             company_name = job_details["company_name"]
+            print(f"  → {job_title} at {company_name}")
 
-        print(f"  → {job_title} at {company_name}")
+            output_dir = make_output_dir(job_title, company_name)
 
-        folder_name = f"{job_title} @ {company_name}".replace("/", "-")
-        output_dir = os.path.join(OUTPUTS_DIR, folder_name)
-        os.makedirs(output_dir, exist_ok=True)
+            missing_keywords = r.get("missing_keywords", [])
+            gaps = r.get("gaps", "")
 
-        missing_keywords = r.get("missing_keywords", [])
-        gaps = r.get("gaps", "")
+            if not missing_keywords and not gaps:
+                print("\n--- Running Keyword Match ---")
+                keyword_report = run_keyword_match(jd_text, cv_text, client)
+                print_keyword_report(keyword_report)
+                save_keyword_report(keyword_report, output_dir)
+                missing_keywords = keyword_report["missing_keywords"]
+                gaps = keyword_report["gaps"]
 
-        if not missing_keywords and not gaps:
-            print("\n--- Running Keyword Match ---")
-            keyword_report = run_keyword_match(jd_text, cv_text, client)
-            print_keyword_report(keyword_report)
-            save_keyword_report(keyword_report, output_dir)
-            missing_keywords = keyword_report.get("missing_keywords", [])
-            gaps = keyword_report.get("gaps", "")
+            print("\n--- Building CV ---")
+            tailor_main(
+                job_title=job_title,
+                company_name=company_name,
+                output_dir=output_dir,
+                missing_keywords=missing_keywords,
+                gaps=gaps,
+                jd_text=jd_text
+            )
 
-        print("\n--- Building CV ---")
-        tailor_main(
-            job_title=job_title,
-            company_name=company_name,
-            output_dir=output_dir,
-            missing_keywords=missing_keywords,
-            gaps=gaps,
-            jd_text=jd_text
-        )
+            print("\n--- Generating Cover Letter ---")
+            cover_main(
+                job_title=job_title,
+                company_name=company_name,
+                output_dir=output_dir,
+                missing_keywords=missing_keywords,
+                gaps=gaps,
+                jd_text=jd_text,
+                job_details=job_details
+            )
 
-        print("\n--- Generating Cover Letter ---")
-        cover_main(
-            job_title=job_title,
-            company_name=company_name,
-            output_dir=output_dir,
-            missing_keywords=missing_keywords,
-            gaps=gaps,
-            jd_text=jd_text
-        )
-
-        print(f"\n✅  Files saved to: {output_dir}")
+            print(f"\n✅  Files saved to: {output_dir}")
+        except Exception as e:
+            print(f"\n  ⚠️  Error processing {label}: {e}")
 
 
 def print_batch_summary(results):
@@ -241,7 +239,7 @@ def print_batch_summary(results):
 
     for r in results:
         label = f"{r['job_title']} @ {r['company_name']}"
-        score = f"  (keyword: {r['keyword_score']}/10)" if r['keyword_score'] else ""
+        score = f"  (keyword: {r['keyword_score']}/10)" if r['keyword_score'] is not None else ""
 
         if r["status"] == "PASS":
             print(f"\n✅  PASS       {label}{score}")
@@ -282,7 +280,7 @@ def save_batch_summary(results):
 
     for r in results:
         label = f"{r['job_title']} @ {r['company_name']}"
-        score = f"  (keyword: {r['keyword_score']}/10)" if r['keyword_score'] else ""
+        score = f"  (keyword: {r['keyword_score']}/10)" if r['keyword_score'] is not None else ""
 
         if r["status"] == "PASS":
             lines.append(f"PASS       {label}{score}")
@@ -302,7 +300,7 @@ def save_batch_summary(results):
         f"Borderline: {sum(1 for r in results if r['status'] == 'BORDERLINE')}",
     ]
 
-    with open(filepath, "w") as f:
+    with open(filepath, "w", encoding="utf-8") as f:
         f.write('\n'.join(lines))
 
     print(f"\n  Batch summary saved to: {filepath}")
@@ -325,7 +323,7 @@ def run_batch():
 
     print("\n" + "=" * 50)
 
-    client = anthropic.Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
+    client = get_client()
     cv_text = read_cv_text()
 
     results = []
@@ -335,10 +333,12 @@ def run_batch():
         print(f"  Processing {i}/{len(jd_files)}: {filename}")
         print("=" * 50)
 
-        jd_text = read_jd_file(jds_folder, filename)
-        print(f"\n  DEBUG: First 100 chars of jd_text: {jd_text[:100]}")
-
+        jd_text = ""
         try:
+            jd_text = read_jd_file(jds_folder, filename)
+            if not jd_text.strip():
+                raise ValueError("The file is empty.")
+
             result = process_single_jd(jd_text, cv_text, client)
 
             if result["job_title"] == "Unknown":
@@ -352,8 +352,14 @@ def run_batch():
 
             results.append(result)
 
+            # Archive only JDs that were actually processed. A JD that hit an
+            # error (API outage, malformed reply) stays in cv-inputs/jds/ so
+            # the next batch run retries it.
+            archive_jd_file(jds_folder, filename)
+
         except Exception as e:
             print(f"\n  ⚠️  Error processing {filename}: {e}")
+            print(f"  {filename} was left in cv-inputs/jds/ so it is retried next time.")
             results.append({
                 "job_title": filename.replace(".txt", ""),
                 "company_name": "Unknown",
@@ -365,17 +371,15 @@ def run_batch():
                 "jd_text": jd_text
             })
 
-        finally:
-            # Always archive the JD file after processing
-            archive_jd_file(jds_folder, filename)
-
     # Print and save batch summary
     print_batch_summary(results)
-    save_batch_summary(results)
+    try:
+        save_batch_summary(results)
+    except OSError as e:
+        print(f"\n  ⚠️  Could not save the batch summary file: {e}")
 
     # Offer to process borderline roles interactively
     borderline_results = [r for r in results if r["status"] == "BORDERLINE"]
-    print(f"\n  Debug: {len(borderline_results)} borderline result(s) found.")
 
     if borderline_results:
         process_borderline_interactively(borderline_results, cv_text, client)

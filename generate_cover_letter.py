@@ -1,9 +1,17 @@
-import anthropic
 import os
 import sys
 from docx import Document
-from config import OUTPUTS_DIR
-from utils import read_jd, read_cv_text, extract_job_details, CV_TAILOR_DIR
+from utils import (
+    read_jd,
+    read_cv_text,
+    extract_job_details,
+    get_client,
+    app_file,
+    read_text_file,
+    ask_claude,
+    make_output_dir,
+    cover_letter_filename,
+)
 from shape_selector import (
     SHAPES_DIR,
     list_shapes,
@@ -11,7 +19,7 @@ from shape_selector import (
     record_shape_used,
 )
 
-PROMPT_PATH = os.path.join(CV_TAILOR_DIR, "cover_letter_prompt.txt")
+PROMPT_PATH = app_file("cover_letter_prompt.txt")
 
 
 def load_shape(shape):
@@ -22,8 +30,7 @@ def load_shape(shape):
             f"Unknown cover letter shape '{shape}'. "
             f"Available shapes: {', '.join(available) if available else 'none found'}"
         )
-    with open(os.path.join(SHAPES_DIR, f"{shape}.txt"), "r", encoding="utf-8") as f:
-        return f.read().strip()
+    return read_text_file(os.path.join(SHAPES_DIR, f"{shape}.txt")).strip()
 
 
 def generate_cover_letter(jd_text, cv_text, job_title, company_name, client,
@@ -41,10 +48,7 @@ def generate_cover_letter(jd_text, cv_text, job_title, company_name, client,
     if shape is None:
         shape, _ = select_shape(job_details)
 
-    with open(PROMPT_PATH, "r", encoding="utf-8") as f:
-        prompt_template = f.read()
-
-    prompt = prompt_template.format(
+    prompt = read_text_file(PROMPT_PATH).format(
         jd_text=jd_text,
         cv_text=cv_text,
         job_title=job_title,
@@ -54,14 +58,12 @@ def generate_cover_letter(jd_text, cv_text, job_title, company_name, client,
         shape_instructions=load_shape(shape)
     )
 
-    message = client.messages.create(
-        model="claude-sonnet-4-6",
-        max_tokens=1000,
-        messages=[{"role": "user", "content": prompt}]
-    )
+    # ask_claude raises if the letter was cut off, so a truncated letter is
+    # never saved as if it were complete.
+    letter = ask_claude(client, prompt, max_tokens=2000, what="cover letter")
 
     record_shape_used(shape)
-    return message.content[0].text.strip()
+    return letter
 
 
 def build_cover_letter_docx(cover_letter_text, job_title, company_name, filename):
@@ -144,7 +146,7 @@ def main(job_title=None, company_name=None, output_dir=None,
     print("Reading CV...")
     cv_text = read_cv_text()
 
-    client = anthropic.Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
+    client = get_client()
 
     # One extraction call gives the title, company AND the role classification
     # used to choose a shape. It is skipped when everything needed was passed in.
@@ -158,8 +160,7 @@ def main(job_title=None, company_name=None, output_dir=None,
         print(f"  → {job_title} at {company_name}")
 
     if output_dir is None:
-        folder_name = f"{job_title} @ {company_name}".replace("/", "-")
-        output_dir = os.path.join(OUTPUTS_DIR, folder_name)
+        output_dir = make_output_dir(job_title, company_name)
     os.makedirs(output_dir, exist_ok=True)
 
     if shape is None:
@@ -176,10 +177,7 @@ def main(job_title=None, company_name=None, output_dir=None,
         shape=shape
     )
 
-    filename = os.path.join(
-        output_dir,
-        f"Subhash_Yadav_Cover_Letter_{job_title}_{company_name}.docx".replace(" ", "_").replace("/", "-")
-    )
+    filename = os.path.join(output_dir, cover_letter_filename(job_title, company_name))
     build_cover_letter_docx(cover_letter_text, job_title, company_name, filename)
 
     print(f"\nDone! Cover letter saved to: {filename}")

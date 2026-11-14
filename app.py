@@ -1,17 +1,21 @@
 import streamlit as st
 import os
-import json
 import time
-import anthropic
 from datetime import datetime
 from config import OUTPUTS_DIR, CV_PATH
-from utils import read_cv_text, extract_job_details
+from utils import (
+    read_cv_text,
+    extract_job_details,
+    get_client,
+    decode_text_bytes,
+    make_output_dir,
+    cover_letter_filename,
+)
 from stress_test import run_stress_test
 from keyword_match import run_keyword_match, save_keyword_report
-from tailor_cv import extract_cv_sections, tailor_with_claude, load_cv_structure
+from tailor_cv import extract_cv_sections, tailor_with_claude, load_cv_structure, build_cv_documents
 from generate_cover_letter import generate_cover_letter, build_cover_letter_docx
 from shape_selector import select_shape, list_shapes
-from utils import run_node_build
 
 # --- Page config ---
 st.set_page_config(
@@ -20,28 +24,72 @@ st.set_page_config(
     layout="wide"
 )
 
-# --- Helpers ---
-def get_client():
-    return anthropic.Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
+DOCX_MIME = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
 
+
+# --- Helpers ---
 def safe_read_bytes(path, retries=5, delay=0.4):
     """Read a file's bytes, retrying briefly if OneDrive (or any sync
     client) still has a lock on a just-written file. Raises the final
-    PermissionError if it never clears. This is what feeds every
-    st.download_button below instead of a raw open(path, 'rb')."""
-    last_error = None
+    PermissionError if it never clears."""
     for attempt in range(retries):
         try:
             with open(path, "rb") as f:
                 return f.read()
-        except PermissionError as e:
-            last_error = e
+        except PermissionError:
+            if attempt == retries - 1:
+                raise
             time.sleep(delay)
-    raise last_error
+
+
+def download_button(label, path, file_name, key):
+    """Show a download button for a generated file. Never crashes the page:
+    a missing file shows nothing, and a locked file shows where it is saved.
+    on_click="ignore" stops the click from rerunning the app, which would
+    otherwise wipe batch results off the screen."""
+    if not path or not os.path.exists(path):
+        return
+    try:
+        data = safe_read_bytes(path)
+    except OSError as e:
+        st.warning(f"Couldn't read {file_name} for download ({e}). It is saved at: {path}")
+        return
+    st.download_button(
+        label=label,
+        data=data,
+        file_name=file_name,
+        mime=DOCX_MIME,
+        key=key,
+        on_click="ignore",
+    )
+
+
+def reset_session():
+    for key in list(st.session_state.keys()):
+        del st.session_state[key]
+    st.rerun()
+
+
+def show_step_error(step, error):
+    """Explain a failed step and let the user retry it or start over, instead
+    of showing a raw traceback. Retrying works because each stage only stores
+    its results once the whole step has succeeded."""
+    st.error(f"**{step} failed:** {error}")
+    with st.expander("Technical details"):
+        st.exception(error)
+    col1, col2 = st.columns(2)
+    with col1:
+        if st.button("🔁 Try again", type="primary", key="retry_failed_step"):
+            st.rerun()
+    with col2:
+        if st.button("🔄 Start over", key="restart_after_error"):
+            reset_session()
+
 
 def format_shape_name(name):
     """'problem_first' -> 'Problem first' (for display only)."""
     return name.replace("_", " ").capitalize()
+
 
 def stress_test_color(result):
     if result == "PASS":
@@ -49,6 +97,7 @@ def stress_test_color(result):
     elif result == "FAIL":
         return "❌"
     return "⚠️"
+
 
 def render_stress_report(report):
     overall = report["overall"]
@@ -62,6 +111,7 @@ def render_stress_report(report):
     for param in report["parameters"]:
         icon = stress_test_color(param["result"])
         st.markdown(f"{icon} **{param['name']}**: {param['reason']}")
+
 
 def render_keyword_report(report):
     score = report["score"]
@@ -85,15 +135,38 @@ def render_keyword_report(report):
     st.markdown(f"**Gaps:** {report['gaps']}")
     st.markdown(f"**Recommendation:** {report['recommendation']}")
 
-def process_single_jd_ui(jd_text, client, cv_text, shape_override=None):
-    """Process a single JD through the full pipeline for batch mode.
-    Borderline results continue to document generation — no interactive prompts.
-    Only hard FAILs stop processing.
 
-    shape_override: force a specific cover letter shape for this JD. If None,
-    the shape is chosen automatically from the role's classification.
-    """
-    result = {
+def render_earlier_reports():
+    if st.session_state.stress_report:
+        st.subheader("Stress Test Report")
+        render_stress_report(st.session_state.stress_report)
+        st.markdown("---")
+
+    if st.session_state.keyword_report:
+        st.subheader("Keyword Match Report")
+        render_keyword_report(st.session_state.keyword_report)
+        st.markdown("---")
+
+
+def render_cv_downloads(key_suffix):
+    st.subheader("Tailored CV")
+    st.success(f"✅ CV generated — {st.session_state.job_title} at {st.session_state.company_name}")
+    download_button(
+        "⬇ Download Tailored CV",
+        st.session_state.cv_path,
+        f"{st.session_state.filename_base}.docx",
+        key=f"cv_download_{key_suffix}",
+    )
+    download_button(
+        "⬇ Download ATS-friendly CV",
+        st.session_state.get("cv_ats_path"),
+        f"{st.session_state.filename_base}_ATS.docx",
+        key=f"cv_ats_download_{key_suffix}",
+    )
+
+
+def new_batch_result():
+    return {
         "status": "PASS",
         "stop_reason": None,
         "job_title": "Unknown",
@@ -102,13 +175,26 @@ def process_single_jd_ui(jd_text, client, cv_text, shape_override=None):
         "stress_report": None,
         "keyword_report": None,
         "cv_path": None,
+        "cv_ats_path": None,
         "cl_path": None,
         "cv_filename": None,
+        "cv_ats_filename": None,
         "cl_filename": None,
         "cl_shape": None,
         "cl_shape_reason": None,
         "output_dir": None,
     }
+
+
+def process_single_jd_ui(jd_text, client, cv_text, shape_override=None):
+    """Process a single JD through the full pipeline for batch mode.
+    Borderline results continue to document generation — no interactive prompts.
+    Only hard FAILs stop processing.
+
+    shape_override: force a specific cover letter shape for this JD. If None,
+    the shape is chosen automatically from the role's classification.
+    """
+    result = new_batch_result()
 
     # Gate 1 — Stress Test
     stress_report = run_stress_test(jd_text, client)
@@ -130,8 +216,8 @@ def process_single_jd_ui(jd_text, client, cv_text, shape_override=None):
     result["keyword_report"] = keyword_report
     score = keyword_report["score"]
     result["keyword_score"] = score
-    missing_keywords = keyword_report.get("missing_keywords", [])
-    gaps = keyword_report.get("gaps", "")
+    missing_keywords = keyword_report["missing_keywords"]
+    gaps = keyword_report["gaps"]
 
     if score <= 3:
         result["status"] = "FAIL"
@@ -150,9 +236,7 @@ def process_single_jd_ui(jd_text, client, cv_text, shape_override=None):
     result["job_title"] = job_title
     result["company_name"] = company_name
 
-    folder_name = f"{job_title} @ {company_name}".replace("/", "-")
-    output_dir = os.path.join(OUTPUTS_DIR, folder_name)
-    os.makedirs(output_dir, exist_ok=True)
+    output_dir = make_output_dir(job_title, company_name)
     result["output_dir"] = output_dir
 
     save_keyword_report(keyword_report, output_dir)
@@ -165,32 +249,12 @@ def process_single_jd_ui(jd_text, client, cv_text, shape_override=None):
         missing_keywords=missing_keywords,
         gaps=gaps
     )
+    paths = build_cv_documents(sections, structure, tailored, job_title, company_name, output_dir)
 
-    filename_base = f"Subhash_Yadav_{job_title}_{company_name}".replace(" ", "_").replace("/", "-")
-    output_data = {
-        "header": sections["header"],
-        "professional_summary": tailored["professional_summary"],
-        "professional_experience": tailored["professional_experience"],
-        "tables": sections["tables"],
-        "filename": os.path.join(output_dir, filename_base),
-        "structure": {
-            "narrative_sections": structure["narrative_sections"],
-            "table_sections": structure["table_sections"],
-            "section_map": structure["section_map"]
-        }
-    }
-
-    with open("cv_data.json", "w") as f:
-        json.dump(output_data, f, indent=2)
-
-    run_node_build("build_docx.js")
-    run_node_build("build_docx_ats.js")
-
-    cv_path = os.path.join(output_dir, f"{filename_base}.docx")
-    result["cv_path"] = cv_path
-    result["cv_filename"] = f"{filename_base}.docx"
-    result["cv_ats_path"] = os.path.join(output_dir, f"{filename_base}_ATS.docx")
-    result["cv_ats_filename"] = f"{filename_base}_ATS.docx"
+    result["cv_path"] = paths["cv_path"]
+    result["cv_filename"] = os.path.basename(paths["cv_path"])
+    result["cv_ats_path"] = paths["cv_ats_path"]
+    result["cv_ats_filename"] = os.path.basename(paths["cv_ats_path"])
 
     # Choose the cover letter shape (forced, or automatic from the classification)
     if shape_override:
@@ -208,7 +272,7 @@ def process_single_jd_ui(jd_text, client, cv_text, shape_override=None):
         shape=shape
     )
 
-    cl_filename = f"Subhash_Yadav_Cover_Letter_{job_title}_{company_name}.docx".replace(" ", "_").replace("/", "-")
+    cl_filename = cover_letter_filename(job_title, company_name)
     cl_path = os.path.join(output_dir, cl_filename)
     build_cover_letter_docx(cl_text, job_title, company_name, cl_path)
 
@@ -216,6 +280,69 @@ def process_single_jd_ui(jd_text, client, cv_text, shape_override=None):
     result["cl_filename"] = cl_filename
 
     return result
+
+
+def render_batch_result(result, i):
+    filename = result["filename"]
+    if result["status"] == "FAIL":
+        st.error(f"❌ FAIL — {filename}")
+        st.caption(f"Reason: {result['stop_reason']}")
+        return
+
+    label = f"{result['job_title']} at {result['company_name']} (keyword: {result['keyword_score']}/10)"
+    if result["status"] == "BORDERLINE":
+        st.warning(f"⚠️ BORDERLINE — {label}")
+        st.caption(f"Note: {result['stop_reason']}")
+    else:
+        st.success(f"✅ PASS — {label}")
+
+    if result.get("cl_shape"):
+        st.caption(f"Letter style: {format_shape_name(result['cl_shape'])} ({result['cl_shape_reason']})")
+
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        download_button("⬇ Download CV", result["cv_path"], result["cv_filename"], key=f"cv_{i}")
+    with col2:
+        download_button("⬇ Download ATS CV", result["cv_ats_path"], result["cv_ats_filename"], key=f"cv_ats_{i}")
+    with col3:
+        download_button("⬇ Download Cover Letter", result["cl_path"], result["cl_filename"], key=f"cl_{i}")
+
+
+def save_batch_summary(batch_log, passed, failed, borderline):
+    timestamp = datetime.now().strftime("%Y_%m_%d_%H_%M")
+    summary_lines = [
+        "BATCH SUMMARY",
+        f"Run: {datetime.now().strftime('%d %B %Y, %H:%M')}",
+        "=" * 40, ""
+    ]
+    for r in batch_log:
+        label = f"{r['job_title']} @ {r['company_name']}"
+        score = f"  (keyword: {r['keyword_score']}/10)" if r['keyword_score'] is not None else ""
+        style = f"  [letter: {r['cl_shape']}]" if r.get("cl_shape") else ""
+        if r["status"] == "PASS":
+            summary_lines.append(f"PASS       {label}{score}{style}")
+        elif r["status"] == "FAIL":
+            summary_lines.append(f"FAIL       {r['filename']}")
+            summary_lines.append(f"  Reason: {r['stop_reason']}")
+        else:
+            summary_lines.append(f"BORDERLINE {label}{score}{style}")
+            summary_lines.append(f"  Note: {r['stop_reason']}")
+        summary_lines.append("")
+
+    summary_lines += [
+        "-" * 40,
+        f"Total: {len(batch_log)}",
+        f"Passed: {len(passed)}",
+        f"Failed: {len(failed)}",
+        f"Borderline: {len(borderline)}"
+    ]
+
+    summary_dir = os.path.join(OUTPUTS_DIR, "batch-summaries")
+    os.makedirs(summary_dir, exist_ok=True)
+    summary_path = os.path.join(summary_dir, f"batch_summary_{timestamp}.txt")
+    with open(summary_path, "w", encoding="utf-8") as f:
+        f.write('\n'.join(summary_lines))
+    return summary_path
 
 
 # --- Initialise session state ---
@@ -231,6 +358,7 @@ def init_state():
         "job_details": None,
         "output_dir": None,
         "cv_path": None,
+        "cv_ats_path": None,
         "cl_path": None,
         "cl_text": None,
         "cl_shape": None,
@@ -280,324 +408,340 @@ letter_shape_override = shape_options[shape_choice]
 st.sidebar.markdown("---")
 
 if st.sidebar.button("🔄 Reset / New JD"):
-    for key in list(st.session_state.keys()):
-        del st.session_state[key]
-    st.rerun()
+    reset_session()
 
 st.sidebar.caption(f"Outputs → {OUTPUTS_DIR}")
 
-# --- Tabs ---
-tab1, tab2 = st.tabs(["Single JD", "Batch Mode"])
 
 # ================================================================
-# TAB 1 — SINGLE JD
+# SINGLE JD — one function per stage. Each stage stores its results in
+# session state only after the whole step succeeds, so a failed step can
+# simply be retried.
 # ================================================================
-with tab1:
-    st.title("CV Tailor")
 
-    if st.session_state.stage == "input":
-        st.subheader("Job Description")
-        jd_text = st.text_area(
-            "Paste the job description here",
-            height=300,
-            placeholder="Paste the full job description..."
+def stage_input():
+    st.subheader("Job Description")
+    jd_text = st.text_area(
+        "Paste the job description here",
+        height=300,
+        placeholder="Paste the full job description..."
+    )
+
+    if st.button("▶ Run", type="primary", disabled=not jd_text.strip()):
+        st.session_state.jd_text = jd_text
+        st.session_state.mode = mode
+        st.session_state.stage = (
+            "stress_test" if mode in ["Full Run", "Stress Test only"]
+            else "keyword_match" if mode == "Keyword Match only"
+            else "extract_details"
         )
-
-        if st.button("▶ Run", type="primary", disabled=not jd_text.strip()):
-            st.session_state.jd_text = jd_text
-            st.session_state.mode = mode
-            st.session_state.stage = (
-                "stress_test" if mode in ["Full Run", "Stress Test only"]
-                else "keyword_match" if mode == "Keyword Match only"
-                else "extract_details"
-            )
-            st.rerun()
-
-    elif st.session_state.stage == "stress_test":
-        st.subheader("Job Description")
-        st.info(st.session_state.jd_text[:300] + "...")
-
-        if st.session_state.stress_report is None:
-            with st.spinner("Running stress test..."):
-                client = get_client()
-                st.session_state.stress_report = run_stress_test(
-                    st.session_state.jd_text, client
-                )
-
-        st.subheader("Stress Test Report")
-        render_stress_report(st.session_state.stress_report)
-        overall = st.session_state.stress_report["overall"]
-
-        if overall == "FAIL":
-            st.error("Role failed stress test. No documents will be generated.")
-            if st.button("🔄 Start over with a new JD"):
-                for key in list(st.session_state.keys()):
-                    del st.session_state[key]
-                st.rerun()
-
-        elif overall == "BORDERLINE":
-            st.markdown("---")
-            st.warning("This role is borderline. Would you like to proceed?")
-            col1, col2 = st.columns(2)
-            with col1:
-                if st.button("✅ Yes, proceed", type="primary"):
-                    st.session_state.stage = (
-                        "done" if st.session_state.mode == "Stress Test only"
-                        else "keyword_match"
-                    )
-                    st.rerun()
-            with col2:
-                if st.button("❌ No, stop here"):
-                    for key in list(st.session_state.keys()):
-                        del st.session_state[key]
-                    st.rerun()
-
-        else:
-            if st.session_state.mode == "Stress Test only":
-                if st.button("🔄 Start over with a new JD"):
-                    for key in list(st.session_state.keys()):
-                        del st.session_state[key]
-                    st.rerun()
-            else:
-                st.session_state.stage = "keyword_match"
-                st.rerun()
-
-    elif st.session_state.stage == "keyword_match":
-        if st.session_state.stress_report:
-            st.subheader("Stress Test Report")
-            render_stress_report(st.session_state.stress_report)
-            st.markdown("---")
-
-        if st.session_state.keyword_report is None:
-            with st.spinner("Running keyword match..."):
-                client = get_client()
-                cv_text = read_cv_text()
-                st.session_state.keyword_report = run_keyword_match(
-                    st.session_state.jd_text, cv_text, client
-                )
-                st.session_state.missing_keywords = st.session_state.keyword_report.get("missing_keywords", [])
-                st.session_state.gaps = st.session_state.keyword_report.get("gaps", "")
-
-        st.subheader("Keyword Match Report")
-        render_keyword_report(st.session_state.keyword_report)
-        score = st.session_state.keyword_report["score"]
-
-        if st.session_state.mode == "Keyword Match only":
-            if st.button("🔄 Start over with a new JD"):
-                for key in list(st.session_state.keys()):
-                    del st.session_state[key]
-                st.rerun()
-
-        elif score <= 6:
-            st.markdown("---")
-            label = f"Keyword score is {'low' if score <= 3 else 'moderate'} ({score}/10). Proceed anyway?"
-            st.warning(label)
-            col1, col2 = st.columns(2)
-            with col1:
-                if st.button("✅ Yes, proceed", type="primary"):
-                    st.session_state.stage = "extract_details"
-                    st.rerun()
-            with col2:
-                if st.button("❌ No, stop here"):
-                    for key in list(st.session_state.keys()):
-                        del st.session_state[key]
-                    st.rerun()
-        else:
-            st.session_state.stage = "extract_details"
-            st.rerun()
-
-    elif st.session_state.stage == "extract_details":
-        if st.session_state.job_title is None:
-            with st.spinner("Extracting job details..."):
-                client = get_client()
-                job_details = extract_job_details(st.session_state.jd_text, client)
-                st.session_state.job_details = job_details
-                st.session_state.job_title = job_details["job_title"]
-                st.session_state.company_name = job_details["company_name"]
-                folder_name = f"{st.session_state.job_title} @ {st.session_state.company_name}".replace("/", "-")
-                st.session_state.output_dir = os.path.join(OUTPUTS_DIR, folder_name)
-                os.makedirs(st.session_state.output_dir, exist_ok=True)
-
-        next_stage = (
-            "tailor_cv" if st.session_state.mode in ["Full Run", "Tailor CV only"]
-            else "cover_letter"
-        )
-        st.session_state.stage = next_stage
         st.rerun()
 
-    elif st.session_state.stage == "tailor_cv":
-        if st.session_state.stress_report:
-            st.subheader("Stress Test Report")
-            render_stress_report(st.session_state.stress_report)
-            st.markdown("---")
 
-        if st.session_state.keyword_report:
-            st.subheader("Keyword Match Report")
-            render_keyword_report(st.session_state.keyword_report)
-            st.markdown("---")
+def stage_stress_test():
+    st.subheader("Job Description")
+    st.info(st.session_state.jd_text[:300] + "...")
 
-        if st.session_state.cv_path is None:
+    if st.session_state.stress_report is None:
+        try:
+            with st.spinner("Running stress test..."):
+                st.session_state.stress_report = run_stress_test(
+                    st.session_state.jd_text, get_client()
+                )
+        except Exception as e:
+            show_step_error("Stress test", e)
+            return
+
+    st.subheader("Stress Test Report")
+    render_stress_report(st.session_state.stress_report)
+    overall = st.session_state.stress_report["overall"]
+
+    if overall == "FAIL":
+        st.error("Role failed stress test. No documents will be generated.")
+        if st.button("🔄 Start over with a new JD"):
+            reset_session()
+
+    elif overall == "BORDERLINE":
+        st.markdown("---")
+        st.warning("This role is borderline. Would you like to proceed?")
+        col1, col2 = st.columns(2)
+        with col1:
+            if st.button("✅ Yes, proceed", type="primary"):
+                st.session_state.stage = (
+                    "done" if st.session_state.mode == "Stress Test only"
+                    else "keyword_match"
+                )
+                st.rerun()
+        with col2:
+            if st.button("❌ No, stop here"):
+                reset_session()
+
+    else:
+        if st.session_state.mode == "Stress Test only":
+            if st.button("🔄 Start over with a new JD"):
+                reset_session()
+        else:
+            st.session_state.stage = "keyword_match"
+            st.rerun()
+
+
+def stage_keyword_match():
+    if st.session_state.stress_report:
+        st.subheader("Stress Test Report")
+        render_stress_report(st.session_state.stress_report)
+        st.markdown("---")
+
+    if st.session_state.keyword_report is None:
+        try:
+            with st.spinner("Running keyword match..."):
+                report = run_keyword_match(
+                    st.session_state.jd_text, read_cv_text(), get_client()
+                )
+        except Exception as e:
+            show_step_error("Keyword match", e)
+            return
+        st.session_state.missing_keywords = report["missing_keywords"]
+        st.session_state.gaps = report["gaps"]
+        st.session_state.keyword_report = report
+
+    st.subheader("Keyword Match Report")
+    render_keyword_report(st.session_state.keyword_report)
+    score = st.session_state.keyword_report["score"]
+
+    if st.session_state.mode == "Keyword Match only":
+        if st.button("🔄 Start over with a new JD"):
+            reset_session()
+
+    elif score <= 6:
+        st.markdown("---")
+        label = f"Keyword score is {'low' if score <= 3 else 'moderate'} ({score}/10). Proceed anyway?"
+        st.warning(label)
+        col1, col2 = st.columns(2)
+        with col1:
+            if st.button("✅ Yes, proceed", type="primary"):
+                st.session_state.stage = "extract_details"
+                st.rerun()
+        with col2:
+            if st.button("❌ No, stop here"):
+                reset_session()
+    else:
+        st.session_state.stage = "extract_details"
+        st.rerun()
+
+
+def stage_extract_details():
+    if st.session_state.job_title is None:
+        try:
+            with st.spinner("Extracting job details..."):
+                job_details = extract_job_details(st.session_state.jd_text, get_client())
+                output_dir = make_output_dir(job_details["job_title"], job_details["company_name"])
+        except Exception as e:
+            show_step_error("Extracting job details", e)
+            return
+        st.session_state.job_details = job_details
+        st.session_state.output_dir = output_dir
+        st.session_state.company_name = job_details["company_name"]
+        st.session_state.job_title = job_details["job_title"]
+
+    st.session_state.stage = (
+        "tailor_cv" if st.session_state.mode in ["Full Run", "Tailor CV only"]
+        else "cover_letter"
+    )
+    st.rerun()
+
+
+def stage_tailor_cv():
+    render_earlier_reports()
+
+    if st.session_state.cv_path is None:
+        try:
             with st.spinner("Tailoring CV (this may take 30 seconds)..."):
-                client = get_client()
                 structure = load_cv_structure()
                 sections = extract_cv_sections(CV_PATH, structure)
                 tailored = tailor_with_claude(
-                    sections, st.session_state.jd_text, client, structure,
+                    sections, st.session_state.jd_text, get_client(), structure,
                     missing_keywords=st.session_state.missing_keywords,
                     gaps=st.session_state.gaps
                 )
-
-                filename_base = f"Subhash_Yadav_{st.session_state.job_title}_{st.session_state.company_name}".replace(" ", "_").replace("/", "-")
-                st.session_state.filename_base = filename_base
-
-                output_data = {
-                    "header": sections["header"],
-                    "professional_summary": tailored["professional_summary"],
-                    "professional_experience": tailored["professional_experience"],
-                    "tables": sections["tables"],
-                    "filename": os.path.join(st.session_state.output_dir, filename_base),
-                    "structure": {
-                        "narrative_sections": structure["narrative_sections"],
-                        "table_sections": structure["table_sections"],
-                        "section_map": structure["section_map"]
-                    }
-                }
-
-                with open("cv_data.json", "w") as f:
-                    json.dump(output_data, f, indent=2)
-
-                run_node_build("build_docx.js")
-                run_node_build("build_docx_ats.js")
-                st.session_state.cv_path = os.path.join(
-                    st.session_state.output_dir, f"{filename_base}.docx"
+                paths = build_cv_documents(
+                    sections, structure, tailored,
+                    st.session_state.job_title, st.session_state.company_name,
+                    st.session_state.output_dir,
                 )
-                st.session_state.cv_ats_path = os.path.join(
-                    st.session_state.output_dir, f"{filename_base}_ATS.docx"
-                )
+        except Exception as e:
+            show_step_error("Tailoring the CV", e)
+            return
+        st.session_state.filename_base = paths["filename_base"]
+        st.session_state.cv_ats_path = paths["cv_ats_path"]
+        st.session_state.cv_path = paths["cv_path"]
 
-        st.subheader("Tailored CV")
-        st.success(f"✅ CV generated — {st.session_state.job_title} at {st.session_state.company_name}")
+    render_cv_downloads("tailor")
 
-        if os.path.exists(st.session_state.cv_path):
-            st.download_button(
-                label="⬇ Download Tailored CV",
-                data=safe_read_bytes(st.session_state.cv_path),
-                file_name=f"{st.session_state.filename_base}.docx",
-                mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-            )
+    if st.session_state.mode == "Full Run":
+        st.session_state.stage = "cover_letter"
+        st.rerun()
+    else:
+        if st.button("🔄 Start over with a new JD"):
+            reset_session()
 
-        if st.session_state.get("cv_ats_path") and os.path.exists(st.session_state.cv_ats_path):
-            st.download_button(
-                label="⬇ Download ATS-friendly CV",
-                data=safe_read_bytes(st.session_state.cv_ats_path),
-                file_name=f"{st.session_state.filename_base}_ATS.docx",
-                mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-                key="cv_ats_download_1"
-            )
 
-        if st.session_state.mode == "Full Run":
-            st.session_state.stage = "cover_letter"
-            st.rerun()
-        else:
-            if st.button("🔄 Start over with a new JD"):
-                for key in list(st.session_state.keys()):
-                    del st.session_state[key]
-                st.rerun()
+def stage_cover_letter():
+    render_earlier_reports()
 
-    elif st.session_state.stage == "cover_letter":
-        if st.session_state.stress_report:
-            st.subheader("Stress Test Report")
-            render_stress_report(st.session_state.stress_report)
-            st.markdown("---")
+    if st.session_state.cv_path:
+        render_cv_downloads("final")
+        st.markdown("---")
 
-        if st.session_state.keyword_report:
-            st.subheader("Keyword Match Report")
-            render_keyword_report(st.session_state.keyword_report)
-            st.markdown("---")
-
-        if st.session_state.cv_path:
-            st.subheader("Tailored CV")
-            st.success(f"✅ CV generated — {st.session_state.job_title} at {st.session_state.company_name}")
-
-            if os.path.exists(st.session_state.cv_path):
-                st.download_button(
-                    label="⬇ Download Tailored CV",
-                    data=safe_read_bytes(st.session_state.cv_path),
-                    file_name=f"{st.session_state.filename_base}.docx",
-                    mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-                    key="cv_download_final"
-                )
-            if st.session_state.get("cv_ats_path") and os.path.exists(st.session_state.cv_ats_path):
-                st.download_button(
-                    label="⬇ Download ATS-friendly CV",
-                    data=safe_read_bytes(st.session_state.cv_ats_path),
-                    file_name=f"{st.session_state.filename_base}_ATS.docx",
-                    mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-                    key="cv_ats_download_2"
-                )
-            st.markdown("---")
-
-        if st.session_state.cl_path is None:
+    if st.session_state.cl_path is None:
+        try:
             with st.spinner("Generating cover letter..."):
-                client = get_client()
-                cv_text = read_cv_text()
-
                 # Forced style from the sidebar, or automatic from the role's classification
                 if letter_shape_override:
                     shape, shape_reason = letter_shape_override, "chosen manually"
                 else:
                     shape, shape_reason = select_shape(st.session_state.job_details)
-                st.session_state.cl_shape = shape
-                st.session_state.cl_shape_reason = shape_reason
 
-                st.session_state.cl_text = generate_cover_letter(
-                    st.session_state.jd_text, cv_text,
+                cl_text = generate_cover_letter(
+                    st.session_state.jd_text, read_cv_text(),
                     st.session_state.job_title, st.session_state.company_name,
-                    client,
+                    get_client(),
                     missing_keywords=st.session_state.missing_keywords,
                     gaps=st.session_state.gaps,
                     shape=shape
                 )
 
-                cl_filename = f"Subhash_Yadav_Cover_Letter_{st.session_state.job_title}_{st.session_state.company_name}.docx".replace(" ", "_").replace("/", "-")
-                st.session_state.cl_filename = cl_filename
+                cl_filename = cover_letter_filename(
+                    st.session_state.job_title, st.session_state.company_name
+                )
                 cl_path = os.path.join(st.session_state.output_dir, cl_filename)
                 build_cover_letter_docx(
-                    st.session_state.cl_text,
+                    cl_text,
                     st.session_state.job_title,
                     st.session_state.company_name,
                     cl_path
                 )
-                st.session_state.cl_path = cl_path
+        except Exception as e:
+            show_step_error("Generating the cover letter", e)
+            return
+        st.session_state.cl_shape = shape
+        st.session_state.cl_shape_reason = shape_reason
+        st.session_state.cl_text = cl_text
+        st.session_state.cl_filename = cl_filename
+        st.session_state.cl_path = cl_path
 
-        st.subheader("Cover Letter")
-        st.success("✅ Cover letter generated")
-        if st.session_state.cl_shape:
-            st.caption(
-                f"Letter style: {format_shape_name(st.session_state.cl_shape)} "
-                f"({st.session_state.cl_shape_reason})"
-            )
-        st.markdown(st.session_state.cl_text)
+    st.subheader("Cover Letter")
+    st.success("✅ Cover letter generated")
+    if st.session_state.cl_shape:
+        st.caption(
+            f"Letter style: {format_shape_name(st.session_state.cl_shape)} "
+            f"({st.session_state.cl_shape_reason})"
+        )
+    st.markdown(st.session_state.cl_text)
 
-        if os.path.exists(st.session_state.cl_path):
-            st.download_button(
-                label="⬇ Download Cover Letter",
-                data=safe_read_bytes(st.session_state.cl_path),
-                file_name=st.session_state.cl_filename,
-                mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-            )
+    download_button(
+        "⬇ Download Cover Letter",
+        st.session_state.cl_path,
+        st.session_state.cl_filename,
+        key="cl_download",
+    )
+
+    st.markdown("---")
+    st.success(f"✅ All files saved to: {st.session_state.output_dir}")
+
+    if st.button("🔄 Start over with a new JD"):
+        reset_session()
+
+
+def stage_done():
+    """End of a 'Stress Test only' run after a borderline result."""
+    render_earlier_reports()
+    if st.button("🔄 Start over with a new JD"):
+        reset_session()
+
+
+STAGES = {
+    "input": stage_input,
+    "done": stage_done,
+    "stress_test": stage_stress_test,
+    "keyword_match": stage_keyword_match,
+    "extract_details": stage_extract_details,
+    "tailor_cv": stage_tailor_cv,
+    "cover_letter": stage_cover_letter,
+}
+
+
+# ================================================================
+# BATCH MODE
+# ================================================================
+
+def run_batch(uploaded_files):
+    try:
+        client = get_client()
+        cv_text = read_cv_text()
+    except Exception as e:
+        st.error(f"Couldn't start the batch: {e}")
+        return
+
+    batch_log = []
+
+    for i, uploaded_file in enumerate(uploaded_files):
+        filename = uploaded_file.name
 
         st.markdown("---")
-        st.success(f"✅ All files saved to: {st.session_state.output_dir}")
+        st.markdown(f"### {i+1}/{len(uploaded_files)}: {filename}")
 
-        if st.button("🔄 Start over with a new JD"):
-            for key in list(st.session_state.keys()):
-                del st.session_state[key]
-            st.rerun()
+        # One failing JD (bad file, API error, malformed reply) is recorded
+        # as a FAIL and the batch carries on with the next one.
+        try:
+            jd_text = decode_text_bytes(uploaded_file.getvalue())
+            if not jd_text.strip():
+                raise ValueError("The file is empty.")
+            with st.spinner(f"Processing {filename}..."):
+                result = process_single_jd_ui(
+                    jd_text, client, cv_text,
+                    shape_override=letter_shape_override
+                )
+        except Exception as e:
+            result = new_batch_result()
+            result["status"] = "FAIL"
+            result["stop_reason"] = f"Processing error: {e}"
 
-# ================================================================
-# TAB 2 — BATCH MODE
-# ================================================================
+        result["filename"] = filename
+        batch_log.append(result)
+        render_batch_result(result, i)
+
+    # --- Batch Summary ---
+    st.markdown("---")
+    st.markdown("## Batch Summary")
+
+    passed = [r for r in batch_log if r["status"] == "PASS"]
+    failed = [r for r in batch_log if r["status"] == "FAIL"]
+    borderline = [r for r in batch_log if r["status"] == "BORDERLINE"]
+
+    col1, col2, col3, col4 = st.columns(4)
+    with col1:
+        st.metric("Total", len(batch_log))
+    with col2:
+        st.metric("✅ Passed", len(passed))
+    with col3:
+        st.metric("❌ Failed", len(failed))
+    with col4:
+        st.metric("⚠️ Borderline", len(borderline))
+
+    try:
+        summary_path = save_batch_summary(batch_log, passed, failed, borderline)
+        st.success(f"✅ Batch summary saved to: {summary_path}")
+    except OSError as e:
+        st.warning(f"Couldn't save the batch summary file: {e}")
+
+
+# --- Tabs ---
+tab1, tab2 = st.tabs(["Single JD", "Batch Mode"])
+
+with tab1:
+    st.title("CV Tailor")
+    STAGES.get(st.session_state.stage, stage_input)()
+
 with tab2:
     st.title("Batch Mode")
     st.markdown("Upload multiple job description files and process them all in one go.")
@@ -621,133 +765,7 @@ with tab2:
             st.markdown(f"• {f.name}")
 
         if st.button("▶ Run Batch", type="primary"):
-            client = get_client()
-            cv_text = read_cv_text()
-            batch_log = []
-
-            for i, uploaded_file in enumerate(uploaded_files):
-                jd_text = uploaded_file.read().decode("utf-8")
-                filename = uploaded_file.name
-
-                st.markdown("---")
-                st.markdown(f"### {i+1}/{len(uploaded_files)}: {filename}")
-
-                with st.spinner(f"Processing {filename}..."):
-                    result = process_single_jd_ui(
-                        jd_text, client, cv_text,
-                        shape_override=letter_shape_override
-                    )
-                    result["filename"] = filename
-                    batch_log.append(result)
-
-                # Display result inline
-                if result["status"] == "FAIL":
-                    st.error(f"❌ FAIL — {filename}")
-                    st.caption(f"Reason: {result['stop_reason']}")
-
-                elif result["status"] == "BORDERLINE":
-                    st.warning(f"⚠️ BORDERLINE — {result['job_title']} at {result['company_name']} (keyword: {result['keyword_score']}/10)")
-                    st.caption(f"Note: {result['stop_reason']}")
-                    if result.get("cl_shape"):
-                        st.caption(f"Letter style: {format_shape_name(result['cl_shape'])} ({result['cl_shape_reason']})")
-                    col1, col2 = st.columns(2)
-                    with col1:
-                        if result["cv_path"] and os.path.exists(result["cv_path"]):
-                            st.download_button(
-                                label="⬇ Download CV",
-                                data=safe_read_bytes(result["cv_path"]),
-                                file_name=result["cv_filename"],
-                                mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-                                key=f"cv_{i}"
-                            )
-                    with col2:
-                        if result["cl_path"] and os.path.exists(result["cl_path"]):
-                            st.download_button(
-                                label="⬇ Download Cover Letter",
-                                data=safe_read_bytes(result["cl_path"]),
-                                file_name=result["cl_filename"],
-                                mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-                                key=f"cl_{i}"
-                            )
-
-                else:
-                    st.success(f"✅ PASS — {result['job_title']} at {result['company_name']} (keyword: {result['keyword_score']}/10)")
-                    if result.get("cl_shape"):
-                        st.caption(f"Letter style: {format_shape_name(result['cl_shape'])} ({result['cl_shape_reason']})")
-                    col1, col2 = st.columns(2)
-                    with col1:
-                        if result["cv_path"] and os.path.exists(result["cv_path"]):
-                            st.download_button(
-                                label="⬇ Download CV",
-                                data=safe_read_bytes(result["cv_path"]),
-                                file_name=result["cv_filename"],
-                                mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-                                key=f"cv_{i}"
-                            )
-                    with col2:
-                        if result["cl_path"] and os.path.exists(result["cl_path"]):
-                            st.download_button(
-                                label="⬇ Download Cover Letter",
-                                data=safe_read_bytes(result["cl_path"]),
-                                file_name=result["cl_filename"],
-                                mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-                                key=f"cl_{i}"
-                            )
-
-            # --- Batch Summary ---
-            st.markdown("---")
-            st.markdown("## Batch Summary")
-
-            passed = [r for r in batch_log if r["status"] == "PASS"]
-            failed = [r for r in batch_log if r["status"] == "FAIL"]
-            borderline = [r for r in batch_log if r["status"] == "BORDERLINE"]
-
-            col1, col2, col3, col4 = st.columns(4)
-            with col1:
-                st.metric("Total", len(batch_log))
-            with col2:
-                st.metric("✅ Passed", len(passed))
-            with col3:
-                st.metric("❌ Failed", len(failed))
-            with col4:
-                st.metric("⚠️ Borderline", len(borderline))
-
-            # Save batch summary file
-            timestamp = datetime.now().strftime("%Y_%m_%d_%H_%M")
-            summary_lines = [
-                "BATCH SUMMARY",
-                f"Run: {datetime.now().strftime('%d %B %Y, %H:%M')}",
-                "=" * 40, ""
-            ]
-            for r in batch_log:
-                label = f"{r['job_title']} @ {r['company_name']}"
-                score = f"  (keyword: {r['keyword_score']}/10)" if r['keyword_score'] else ""
-                style = f"  [letter: {r['cl_shape']}]" if r.get("cl_shape") else ""
-                if r["status"] == "PASS":
-                    summary_lines.append(f"PASS       {label}{score}{style}")
-                elif r["status"] == "FAIL":
-                    summary_lines.append(f"FAIL       {r['filename']}")
-                    summary_lines.append(f"  Reason: {r['stop_reason']}")
-                else:
-                    summary_lines.append(f"BORDERLINE {label}{score}{style}")
-                    summary_lines.append(f"  Note: {r['stop_reason']}")
-                summary_lines.append("")
-
-            summary_lines += [
-                "-" * 40,
-                f"Total: {len(batch_log)}",
-                f"Passed: {len(passed)}",
-                f"Failed: {len(failed)}",
-                f"Borderline: {len(borderline)}"
-            ]
-
-            summary_dir = os.path.join(OUTPUTS_DIR, "batch-summaries")
-            os.makedirs(summary_dir, exist_ok=True)
-            summary_path = os.path.join(summary_dir, f"batch_summary_{timestamp}.txt")
-            with open(summary_path, "w") as f:
-                f.write('\n'.join(summary_lines))
-
-            st.success(f"✅ Batch summary saved to: {summary_path}")
+            run_batch(uploaded_files)
 
     else:
         st.info("Upload one or more .txt job description files above to get started.")

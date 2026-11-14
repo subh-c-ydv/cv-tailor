@@ -1,12 +1,21 @@
-import anthropic
 import os
 import re
 import json
 from docx import Document
 from docx.oxml.ns import qn
-from config import CV_PATH, OUTPUTS_DIR
-from utils import read_jd, extract_job_details
-from utils import run_node_build
+from config import CV_PATH, CV_DATA_PATH
+from utils import (
+    read_jd,
+    extract_job_details,
+    get_client,
+    app_file,
+    read_text_file,
+    load_prompt,
+    ask_claude_json,
+    make_output_dir,
+    cv_filename_base,
+    run_node_build,
+)
 
 
 def load_cv_structure():
@@ -18,26 +27,25 @@ def load_cv_structure():
         "section_map": {}
     }
 
-    with open("cv_structure.txt", "r") as f:
-        for line in f:
-            line = line.strip()
-            if not line or line.startswith("#"):
-                continue
+    for line in read_text_file(app_file("cv_structure.txt")).splitlines():
+        line = line.strip()
+        if not line or line.startswith("#"):
+            continue
 
-            parts = [p.strip() for p in line.split("|")]
-            if len(parts) != 2:
-                continue
+        parts = [p.strip() for p in line.split("|")]
+        if len(parts) != 2:
+            continue
 
-            heading, section_type = parts[0], parts[1].lower()
+        heading, section_type = parts[0], parts[1].lower()
 
-            if section_type == "header":
-                structure["section_map"][heading] = "header"
-            elif section_type == "narrative":
-                structure["narrative_sections"].append(heading)
-                structure["section_map"][heading] = heading.lower().replace(" ", "_").replace("&", "and")
-            elif section_type == "table":
-                structure["table_sections"].append(heading)
-                structure["section_map"][heading] = heading.lower().replace(" ", "_").replace("&", "and")
+        if section_type == "header":
+            structure["section_map"][heading] = "header"
+        elif section_type == "narrative":
+            structure["narrative_sections"].append(heading)
+            structure["section_map"][heading] = heading.lower().replace(" ", "_").replace("&", "and")
+        elif section_type == "table":
+            structure["table_sections"].append(heading)
+            structure["section_map"][heading] = heading.lower().replace(" ", "_").replace("&", "and")
 
     return structure
 
@@ -131,6 +139,13 @@ def extract_cv_sections(docx_path, structure):
             if current_section in structure["table_sections"]:
                 sections["tables"][current_key] = table_texts
 
+    if not sections["header"]:
+        raise ValueError(
+            f"No header lines (name, tagline, contact) were found in {docx_path}. "
+            "Check that the master CV starts with your name and that the section "
+            "headings in cv_structure.txt match the CV exactly."
+        )
+
     return sections
 
 
@@ -143,6 +158,45 @@ def format_competencies_for_prompt(rows):
         desc = row[1] if len(row) > 1 else ''
         lines.append(f"{i}. {label} — {desc}")
     return '\n'.join(lines)
+
+
+def normalise_tailored(raw):
+    """Validate the tailoring JSON. The summary and experience are required;
+    the tagline and core competencies are optional and fall back to the
+    master CV's originals when missing or malformed."""
+    summary = raw.get("professional_summary")
+    if isinstance(summary, list):
+        summary = " ".join(str(s) for s in summary)
+    summary = str(summary or "").strip()
+    if not summary:
+        raise ValueError("The tailoring response had no professional_summary.")
+
+    experience = raw.get("professional_experience")
+    if isinstance(experience, str):
+        experience = experience.splitlines()
+    if not isinstance(experience, list):
+        experience = []
+    experience = [str(line) for line in experience if str(line).strip()]
+    if not experience:
+        raise ValueError("The tailoring response had no professional_experience.")
+
+    tagline = raw.get("tagline")
+    tagline = str(tagline).strip() if isinstance(tagline, str) else ""
+
+    competencies = []
+    for row in raw.get("core_competencies") or []:
+        if isinstance(row, (list, tuple)) and row:
+            label = str(row[0]).strip()
+            desc = str(row[1]).strip() if len(row) > 1 else ""
+            if label:
+                competencies.append([label, desc])
+
+    return {
+        "tagline": tagline,
+        "professional_summary": summary,
+        "professional_experience": experience,
+        "core_competencies": competencies,
+    }
 
 
 def tailor_with_claude(sections, jd_text, client, structure,
@@ -170,10 +224,7 @@ def tailor_with_claude(sections, jd_text, client, structure,
     core_competencies_rows = sections.get("tables", {}).get("core_competencies", [])
     core_competencies_text = format_competencies_for_prompt(core_competencies_rows)
 
-    with open("prompt_config.txt", "r") as f:
-        prompt_template = f.read()
-
-    prompt = prompt_template.format(
+    prompt = load_prompt("prompt_config.txt").format(
         jd_text=jd_text,
         tagline_text=tagline_text,
         core_competencies_text=core_competencies_text,
@@ -183,21 +234,61 @@ def tailor_with_claude(sections, jd_text, client, structure,
         gaps=gaps if gaps else 'None identified'
     )
 
-    message = client.messages.create(
-        model="claude-sonnet-4-6",
-        max_tokens=4096,
-        messages=[{"role": "user", "content": prompt}]
-    )
+    raw = ask_claude_json(client, prompt, max_tokens=8192, what="CV tailoring")
+    return normalise_tailored(raw)
 
-    response_text = message.content[0].text.strip()
 
-    if response_text.startswith("```"):
-        response_text = response_text.split("```")[1]
-        if response_text.startswith("json"):
-            response_text = response_text[4:]
+def build_cv_documents(sections, structure, tailored, job_title, company_name, output_dir):
+    """Write the tailored CV as both the styled and the ATS-friendly .docx.
 
-    response_text = response_text.strip()
-    return json.loads(response_text)
+    This is the single place where Claude's tailoring is merged into the
+    master CV (tagline, core competencies, summary, experience), so every
+    interface (Streamlit, terminal menu, batch) produces the same document.
+
+    Returns a dict with filename_base, cv_path and cv_ats_path."""
+    filename_base = cv_filename_base(job_title, company_name)
+
+    # header[0]=name stays, header[1]=tagline is replaced with the tailored
+    # one, header[2:]=contact lines stay unchanged
+    header_lines = list(sections["header"])
+    tailored_tagline = normalize_text(tailored.get("tagline", ""))
+    if tailored_tagline and len(header_lines) > 1:
+        header_lines[1] = tailored_tagline
+
+    # Use the tailored core competencies, falling back to the original full
+    # table if Claude didn't return anything usable
+    tables = dict(sections["tables"])
+    if tailored.get("core_competencies"):
+        tables["core_competencies"] = tailored["core_competencies"]
+
+    output_data = {
+        "header": header_lines,
+        "professional_summary": tailored["professional_summary"],
+        "professional_experience": tailored["professional_experience"],
+        "tables": tables,
+        "filename": os.path.join(output_dir, filename_base),
+        "structure": {
+            "narrative_sections": structure["narrative_sections"],
+            "table_sections": structure["table_sections"],
+            "section_map": structure["section_map"]
+        }
+    }
+
+    with open(CV_DATA_PATH, "w", encoding="utf-8") as f:
+        json.dump(output_data, f, indent=2)
+
+    run_node_build("build_docx.js")
+    run_node_build("build_docx_ats.js")
+
+    paths = {
+        "filename_base": filename_base,
+        "cv_path": os.path.join(output_dir, f"{filename_base}.docx"),
+        "cv_ats_path": os.path.join(output_dir, f"{filename_base}_ATS.docx"),
+    }
+    for key in ("cv_path", "cv_ats_path"):
+        if not os.path.exists(paths[key]):
+            raise RuntimeError(f"The document builder reported success but {paths[key]} was not created.")
+    return paths
 
 
 def main(job_title=None, company_name=None, output_dir=None,
@@ -213,7 +304,7 @@ def main(job_title=None, company_name=None, output_dir=None,
         print("Reading job description...")
         jd_text = read_jd()
 
-    client = anthropic.Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
+    client = get_client()
 
     if not job_title or not company_name:
         print("Extracting job title and company from JD...")
@@ -223,8 +314,7 @@ def main(job_title=None, company_name=None, output_dir=None,
         print(f"  → {job_title} at {company_name}")
 
     if output_dir is None:
-        folder_name = f"{job_title} @ {company_name}".replace("/", "-")
-        output_dir = os.path.join(OUTPUTS_DIR, folder_name)
+        output_dir = make_output_dir(job_title, company_name)
     os.makedirs(output_dir, exist_ok=True)
 
     print("Sending to Claude for tailoring (this may take 30 seconds)...")
@@ -234,42 +324,8 @@ def main(job_title=None, company_name=None, output_dir=None,
         gaps=gaps
     )
 
-    filename_base = f"Subhash_Yadav_{job_title}_{company_name}".replace(" ", "_").replace("/", "-")
-
-    # Build the header array with the tailored tagline substituted in place
-    # of the original (header[0]=name stays, header[1]=tagline gets replaced,
-    # header[2:]=contact lines stay unchanged)
-    header_lines = list(sections["header"])
-    tailored_tagline = normalize_text(tailored.get("tagline", ""))
-    if tailored_tagline and len(header_lines) > 1:
-        header_lines[1] = tailored_tagline
-
-    # Substitute the tailored core competencies rows, falling back to the
-    # original full table if Claude didn't return anything usable
-    tables = dict(sections["tables"])
-    tailored_competencies = tailored.get("core_competencies")
-    if tailored_competencies:
-        tables["core_competencies"] = tailored_competencies
-
-    output_data = {
-        "header": header_lines,
-        "professional_summary": tailored["professional_summary"],
-        "professional_experience": tailored["professional_experience"],
-        "tables": tables,
-        "filename": os.path.join(output_dir, filename_base),
-        "structure": {
-            "narrative_sections": structure["narrative_sections"],
-            "table_sections": structure["table_sections"],
-            "section_map": structure["section_map"]
-        }
-    }
-
-    with open("cv_data.json", "w") as f:
-        json.dump(output_data, f, indent=2)
-
     print("Tailoring done. Building Word document...")
-    run_node_build("build_docx.js")
-    run_node_build("build_docx_ats.js")
+    build_cv_documents(sections, structure, tailored, job_title, company_name, output_dir)
 
     print(f"\nDone! CV saved to: {output_dir}")
     return job_title, company_name, output_dir
