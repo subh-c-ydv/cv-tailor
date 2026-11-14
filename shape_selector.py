@@ -32,10 +32,12 @@ def list_shapes():
     )
 
 
-def load_weight_rows(path=WEIGHTS_PATH, available=None):
+def load_weight_rows(path=None, available=None):
     """Parse cover_letter_weights.txt into a list of rows, in file order.
     Raises ValueError with the line number if anything is malformed, so a typo
     in the file is caught straight away rather than silently ignored."""
+    if path is None:
+        path = WEIGHTS_PATH  # looked up at call time, so it can be overridden
     if available is None:
         available = list_shapes()
 

@@ -8,7 +8,7 @@ def _clean_keyword_list(value):
         value = [value]
     if not isinstance(value, list):
         return []
-    return [str(item).strip() for item in value if str(item).strip()]
+    return [str(item).strip() for item in value if item is not None and str(item).strip()]
 
 
 def normalise_keyword_report(raw):

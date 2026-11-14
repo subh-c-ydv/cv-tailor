@@ -230,6 +230,30 @@ python3 menu.py
 
 ---
 
+## Testing
+
+The test suite runs fully offline: it never calls the Claude API (so it costs nothing) and never writes to `cv-outputs/`.
+
+```bash
+pip install -r requirements-dev.txt   # once
+python -m pytest                      # ~15 seconds
+```
+
+Run it after editing any prompt or config file as well as after code changes — it checks that every prompt template still formats (a stray `{` breaks the pipeline mid-run), that `cover_letter_weights.txt` is valid, and that the fixed factual rules are still present in the prompts. The CV-building tests run the real Node.js builders and are skipped if Node.js isn't installed.
+
+### Fact check
+
+`fact_check.py` scans generated documents for breaches of the fixed factual rules (e.g. "CIO level", IBM/Endava, P&L ownership, the lapsed CSM, US spelling, "PowerBI", literal `**` markdown) — no LLM involved:
+
+```bash
+python fact_check.py                          # every .docx in cv-outputs/
+python fact_check.py "cv-outputs/Some Role @ Company"
+```
+
+Findings are either **violations** (fix before sending) or **review** items (read the sentence). The job title and company from the folder name are ignored, so a JD titled "Program Manager" doesn't trigger the UK-spelling rule.
+
+---
+
 ## Configuration
 
 All prompts and structure files are plain text and can be edited without touching any code. Changes take effect on the next run — no restart needed.
@@ -423,6 +447,14 @@ Output filenames include the candidate name, job title, and company. Both spaces
 ---
 
 ## Changelog
+
+### v1.9
+- **Fixed literal `**` markers in every tailored CV** — the prompt asks Claude to bold key metrics with markdown, but `build_docx.js` / `build_docx_ats.js` printed the asterisks as text (10–14 pairs per CV since v1.6). Both builders, and the cover letter builder, now render them as real bold runs
+- **Fixed Streamlit discarding the tailored tagline and core competencies** (single and batch) — all interfaces now share `tailor_cv.build_cv_documents()`
+- **Fixed prompts being garbled on Windows** — `prompt_config.txt`, `stress_test_prompt.txt` and `keyword_match_prompt.txt` were read as cp1252 ("Møller" reached Claude as "MÃ¸ller"); all text I/O is now UTF-8, and JD files fall back to cp1252
+- Robustness: Windows-safe output file names; truncated, refused or empty Claude replies are detected instead of saved; model output is validated before use; Streamlit steps can be retried after a failure; one failing JD no longer stops a batch; terminal batch leaves errored JDs in the inbox for retry; download buttons no longer clear batch results
+- New offline test suite (`tests/`, ~170 tests, `python -m pytest`) and `fact_check.py`, a no-LLM checker of generated documents against the fixed factual rules — see Testing
+- Model ID centralised in `config.py`; dependencies pinned
 
 ### v1.8
 - Cover letter restructured into a shared base prompt plus selectable shapes — the fixed four-paragraph structure is replaced by five structures in `cover_letter_shapes/` (`problem_first`, `story_first`, `three_strengths`, `direct_short`, `question_led`), so letters vary in shape and feel and not only in wording

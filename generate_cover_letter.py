@@ -1,4 +1,5 @@
 import os
+import re
 import sys
 from docx import Document
 from utils import (
@@ -111,10 +112,17 @@ def build_cover_letter_docx(cover_letter_text, job_title, company_name, filename
 
     for para_text in paragraphs:
         p = doc.add_paragraph()
-        run = p.add_run(para_text)
-        run.font.size = Pt(10.5)
-        run.font.name = "Calibri"
-        run.font.color.rgb = RGBColor(0x1F, 0x2D, 0x3D)
+        # Render any **markdown bold** as real bold rather than asterisks
+        # (same handling as the CV builders); stray markers are dropped.
+        for i, part in enumerate(re.split(r"\*\*(.+?)\*\*", para_text)):
+            part = part.replace("**", "")
+            if not part:
+                continue
+            run = p.add_run(part)
+            run.bold = i % 2 == 1
+            run.font.size = Pt(10.5)
+            run.font.name = "Calibri"
+            run.font.color.rgb = RGBColor(0x1F, 0x2D, 0x3D)
         p.paragraph_format.space_after = Pt(10)
         p.paragraph_format.line_spacing = Pt(14)
 

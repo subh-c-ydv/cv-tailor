@@ -12,17 +12,32 @@ function spacer() {
     return new Paragraph({ spacing: { before: 120, after: 0 }, children: [] });
 }
 
+// The tailoring prompt asks Claude to bold key metrics, which it does with
+// markdown (**like this**). Turn those into real bold runs instead of
+// printing the asterisks. Any unmatched "**" left over is dropped.
+// (Plain bold is ATS-safe; it is only tables and columns that ATSs misread.)
+function richRuns(text, opts = {}) {
+    const parts = String(text || '').split(/\*\*(.+?)\*\*/);
+    const runs = [];
+    parts.forEach((part, i) => {
+        const clean = part.replace(/\*\*/g, '');
+        if (!clean) return;
+        runs.push(new TextRun({
+            text: clean,
+            bold: i % 2 === 1 ? true : (opts.bold || false),  // odd parts were inside ** **
+            size: opts.size || 17,
+            color: opts.color || DARK,
+            font: FONT
+        }));
+    });
+    return runs;
+}
+
 function para(text, opts = {}) {
     return new Paragraph({
         alignment: opts.align || AlignmentType.LEFT,
         spacing: { before: opts.spaceBefore || 0, after: opts.spaceAfter || 60 },
-        children: [new TextRun({
-            text: text,
-            bold: opts.bold || false,
-            size: opts.size || 17,
-            color: opts.color || DARK,
-            font: FONT
-        })]
+        children: richRuns(text, opts)
     });
 }
 
@@ -46,7 +61,7 @@ function bulletPara(text) {
         indent: { left: 360, hanging: 180 },
         children: [
             new TextRun({ text: "\u2022 ", bold: true, size: 17, color: ACCENT, font: FONT }),
-            new TextRun({ text: text, size: 17, color: DARK, font: FONT })
+            ...richRuns(text, { size: 17, color: DARK })
         ]
     });
 }
